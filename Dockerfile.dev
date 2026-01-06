@@ -1,0 +1,16 @@
+# Development Dockerfile - mounts binary from host for hot-reload
+FROM alpine:3.19
+
+WORKDIR /app
+
+# Install runtime dependencies
+RUN apk add --no-cache ca-certificates tzdata
+
+# Create directory for mounted binary
+RUN mkdir -p /app/bin
+
+# Wrapper script that watches for binary updates
+COPY scripts/wrapper.sh /app/wrapper.sh
+RUN chmod +x /app/wrapper.sh
+
+ENTRYPOINT ["/app/wrapper.sh"]

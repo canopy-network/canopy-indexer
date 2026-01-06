@@ -1,0 +1,14 @@
+# Binaries
+bin/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+
+# Environment
+.env
+.env.local

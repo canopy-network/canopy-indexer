@@ -1,0 +1,126 @@
+.PHONY: build build-linux build-backfill build-all run test clean migrate tilt \
+	docker-build docker-build-dev fmt lint generate show-progress show-stats \
+	backfill backfill-stats backfill-dry-run backfill-range backfill-fast show-gaps
+
+# Build the indexer (native)
+build:
+	go build -o bin/indexer ./cmd/indexer
+
+# Build the backfill tool (native)
+build-backfill:
+	go build -o bin/backfill ./cmd/backfill
+
+# Build all binaries
+build-all: build build-backfill
+
+# Build all binaries for Linux (for Docker)
+build-linux:
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o bin/indexer-linux ./cmd/indexer
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o bin/backfill-linux ./cmd/backfill
+
+# Run the indexer
+run: build
+	./bin/indexer
+
+# Run tests
+test:
+	go test -v ./...
+
+# Clean build artifacts
+clean:
+	rm -rf bin/
+
+# Run database migrations (local postgres on 5434)
+migrate:
+	PGPASSWORD=pgindexer123 psql -h localhost -p 5434 -U pgindexer -d pgindexer -f migrations/001_initial.sql
+
+# Reset database (drop and recreate)
+db-reset:
+	PGPASSWORD=pgindexer123 psql -h localhost -p 5434 -U pgindexer -d pgindexer -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"
+	$(MAKE) migrate
+
+# Start Tilt development environment (port 10370 to avoid conflicts)
+tilt:
+	tilt up --port 10370
+
+# Stop Tilt (kill server on port 10370 and tear down resources)
+tilt-down:
+	fuser -k 10370/tcp 2>/dev/null || true
+	tilt down
+
+# Docker build (production)
+docker-build:
+	docker build -t pgindexer:latest .
+
+# Docker build (development - for Tilt)
+docker-build-dev:
+	docker build -f Dockerfile.dev -t pgindexer:latest .
+
+# Format code
+fmt:
+	go fmt ./...
+	goimports -w .
+
+# Lint code
+lint:
+	golangci-lint run
+
+# Generate mocks (if needed)
+generate:
+	go generate ./...
+
+# Show indexing progress
+show-progress:
+	PGPASSWORD=pgindexer123 psql -h localhost -p 5434 -U pgindexer -d pgindexer -c "SELECT * FROM index_progress ORDER BY chain_id;"
+
+# Show table stats
+show-stats:
+	PGPASSWORD=pgindexer123 psql -h localhost -p 5434 -U pgindexer -d pgindexer -c "\
+		SELECT 'blocks' as table_name, COUNT(*) as count FROM blocks \
+		UNION ALL SELECT 'txs', COUNT(*) FROM txs \
+		UNION ALL SELECT 'events', COUNT(*) FROM events \
+		UNION ALL SELECT 'accounts', COUNT(*) FROM accounts \
+		UNION ALL SELECT 'validators', COUNT(*) FROM validators \
+		ORDER BY table_name;"
+
+# ============================================================================
+# Backfill targets
+# ============================================================================
+
+# Run backfill (index all missing blocks)
+backfill: build-backfill
+	./bin/backfill
+
+# Show gap statistics only (no indexing)
+backfill-stats: build-backfill
+	./bin/backfill -stats
+
+# Dry run backfill (report gaps without indexing)
+backfill-dry-run: build-backfill
+	./bin/backfill -dry-run
+
+# Backfill a specific range (usage: make backfill-range START=1000 END=5000)
+backfill-range: build-backfill
+	./bin/backfill -start $(START) -end $(END)
+
+# High-throughput backfill (50 concurrent workers)
+backfill-fast: build-backfill
+	./bin/backfill -concurrency 50 -batch 5000
+
+# Show gaps in blocks table (SQL query)
+show-gaps:
+	PGPASSWORD=pgindexer123 psql -h localhost -p 5434 -U pgindexer -d pgindexer -c "\
+		WITH stats AS ( \
+			SELECT \
+				COUNT(*) as indexed, \
+				MIN(height) as min_height, \
+				MAX(height) as max_height \
+			FROM blocks WHERE chain_id = 1 \
+		) \
+		SELECT \
+			indexed, \
+			min_height, \
+			max_height, \
+			max_height - min_height + 1 as expected, \
+			max_height - min_height + 1 - indexed as missing \
+		FROM stats;"

@@ -1,0 +1,118 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: pgindexer-postgres
+    environment:
+      POSTGRES_DB: pgindexer
+      POSTGRES_USER: pgindexer
+      POSTGRES_PASSWORD: pgindexer123
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "5434:5432"  # Use 5434 to avoid conflict with other postgres instances
+    volumes:
+      - pgindexer_postgres_data:/var/lib/postgresql/data
+    command:
+      - "postgres"
+      - "-c"
+      - "log_min_duration_statement=100"    # Log queries > 100ms
+      - "-c"
+      - "log_statement=none"                 # Don't log all statements
+      - "-c"
+      - "log_line_prefix=%t [%p] %u@%d "    # Timestamp, PID, user@db
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pgindexer -d pgindexer"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - pgindexer-network
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: pgindexer-redis
+    command: redis-server --requirepass canopy-redis-dev
+    ports:
+      - "6381:6379"  # Use 6381 to avoid conflict with other redis instances
+    volumes:
+      - pgindexer_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "canopy-redis-dev", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - pgindexer-network
+    restart: unless-stopped
+
+  indexer:
+    image: alpine:3.19
+    container_name: pgindexer-indexer
+    env_file: .env
+    environment:
+      POSTGRES_URL: "postgres://pgindexer:pgindexer123@postgres:5432/pgindexer?sslmode=disable"
+      REDIS_URL: "redis://:canopy-redis-dev@redis:6379/0"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./bin/indexer-linux:/app/bin/indexer:ro
+    working_dir: /app
+    command: ["/app/bin/indexer"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rpc-mock:
+        condition: service_healthy
+    networks:
+      - pgindexer-network
+    restart: unless-stopped
+    tty: true
+
+  backfill:
+    image: alpine:3.19
+    container_name: pgindexer-backfill
+    env_file: .env
+    environment:
+      POSTGRES_URL: "postgres://pgindexer:pgindexer123@postgres:5432/pgindexer?sslmode=disable"
+      REDIS_URL: "redis://:canopy-redis-dev@redis:6379/0"
+    volumes:
+      - ./bin/backfill-linux:/app/bin/backfill:ro
+    working_dir: /app
+    command: ["/app/bin/backfill", "-chain", "1000", "-concurrency", "1", "-batch", "5", "-end", "50"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rpc-mock:
+        condition: service_healthy
+    networks:
+      - pgindexer-network
+    restart: "no"  # Run once and exit
+
+  rpc-mock:
+    build:
+      context: ../canopy-rpc-mock
+      dockerfile: Dockerfile
+    container_name: pgindexer-rpc-mock
+    command: ["-chains", "100", "-blocks", "1000", "-start-port", "60000", "-start-chain-id", "1000"]
+    ports:
+      - "60000-60099:60000-60099"
+    networks:
+      - pgindexer-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:60000/v1/query/height"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+
+networks:
+  pgindexer-network:
+    name: pgindexer-network
+    driver: bridge
+
+volumes:
+  pgindexer_postgres_data:
+  pgindexer_redis_data:
