@@ -9,9 +9,10 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-// DEX order states
+// DEX states
 const (
-	DexStatePending  = "pending"
+	DexStateFuture   = "future"  // dex_order_state initial state
+	DexStatePending  = "pending" // dex_deposit_state/dex_withdrawal_state initial state
 	DexStateLocked   = "locked"
 	DexStateComplete = "complete"
 )
@@ -386,7 +387,7 @@ func (idx *Indexer) processDexOrders(ctx context.Context, chainID, height uint64
 					address,
 					order.AmountForSale,
 					order.RequestedAmount,
-					DexStatePending,
+					DexStateFuture,
 					height,
 					blockTime,
 				)
