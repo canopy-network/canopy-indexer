@@ -80,7 +80,7 @@ services:
     volumes:
       - ./bin/backfill-linux:/app/bin/backfill:ro
     working_dir: /app
-    command: ["/app/bin/backfill", "-chain", "1000", "-concurrency", "1", "-batch", "5", "-end", "50"]
+    command: ["/app/bin/backfill", "-chain", "1000", "-concurrency", "10", "-batch", "100", "-end", "1000"]
     depends_on:
       postgres:
         condition: service_healthy

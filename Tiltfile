@@ -98,6 +98,21 @@ local_resource(
     resource_deps=['db-migrate', 'redis'],
 )
 
+# Recompile and run backfill (use this instead of restarting backfill dc_resource)
+local_resource(
+    'backfill-run',
+    cmd='''
+        echo "Compiling backfill..."
+        CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o bin/backfill-linux ./cmd/backfill
+        echo "Restarting backfill container..."
+        docker restart pgindexer-backfill
+        echo "Done! Check backfill logs for output."
+    ''',
+    labels=['indexer'],
+    trigger_mode=TRIGGER_MODE_MANUAL,
+    auto_init=False,
+)
+
 # Indexer service (worker - waits for Redis jobs)
 dc_resource(
     'indexer',
@@ -187,6 +202,7 @@ print("   • Backfill: indexes all 100 chains (runs automatically)")
 print("   • Indexer: worker (waits for Redis jobs, WS disabled)")
 print("")
 print("🔧 Utility commands (trigger manually):")
+print("   • backfill-run: Recompile and run backfill")
 print("   • db-reset: Reset database and re-run migrations")
 print("   • redis-clear: Clear Redis streams")
 print("   • show-progress: View indexing progress")
