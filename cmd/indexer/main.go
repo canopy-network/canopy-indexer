@@ -8,14 +8,14 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/canopy-network/pgindexer/internal/backfill"
-	"github.com/canopy-network/pgindexer/internal/config"
-	"github.com/canopy-network/pgindexer/internal/db"
-	"github.com/canopy-network/pgindexer/internal/indexer"
-	"github.com/canopy-network/pgindexer/internal/listener"
-	"github.com/canopy-network/pgindexer/internal/publisher"
-	"github.com/canopy-network/pgindexer/internal/worker"
-	"github.com/canopy-network/pgindexer/pkg/rpc"
+	"github.com/canopy-network/canopy-indexer/internal/backfill"
+	"github.com/canopy-network/canopy-indexer/internal/config"
+	"github.com/canopy-network/canopy-indexer/internal/db"
+	"github.com/canopy-network/canopy-indexer/internal/indexer"
+	"github.com/canopy-network/canopy-indexer/internal/listener"
+	"github.com/canopy-network/canopy-indexer/internal/publisher"
+	"github.com/canopy-network/canopy-indexer/internal/worker"
+	"github.com/canopy-network/canopy-indexer/pkg/rpc"
 	"github.com/redis/go-redis/v9"
 	"golang.org/x/sync/errgroup"
 )
@@ -34,7 +34,7 @@ func main() {
 	// Setup logging
 	setupLogging(cfg.LogLevel)
 
-	slog.Info("starting pgindexer",
+	slog.Info("starting canopy-indexer",
 		"chains", len(cfg.Chains),
 		"ws_enabled", cfg.WSEnabled,
 	)

@@ -1,4 +1,4 @@
-# pgindexer - Canopy Blockchain Indexer
+# canopy-indexer - Canopy Blockchain Indexer
 
 A simplified blockchain indexer for Canopy, replacing Temporal workflows with Watermill + Redis Streams.
 
@@ -110,7 +110,7 @@ golang.org/x/sync/errgroup
 ## Project Structure
 
 ```
-pgindexer/
+canopy-indexer/
 ├── cmd/
 │   └── indexer/
 │       └── main.go           # Entry point

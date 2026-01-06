@@ -3,7 +3,7 @@ package indexer
 import (
 	"encoding/json"
 
-	"github.com/canopy-network/pgindexer/pkg/transform"
+	"github.com/canopy-network/canopy-indexer/pkg/transform"
 	"github.com/jackc/pgx/v5"
 )
 

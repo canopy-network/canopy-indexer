@@ -9,7 +9,7 @@ import (
 	"github.com/ThreeDotsLabs/watermill"
 	"github.com/ThreeDotsLabs/watermill-redisstream/pkg/redisstream"
 	"github.com/ThreeDotsLabs/watermill/message"
-	"github.com/canopy-network/pgindexer/internal/indexer"
+	"github.com/canopy-network/canopy-indexer/internal/indexer"
 	"github.com/redis/go-redis/v9"
 )
 

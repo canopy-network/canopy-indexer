@@ -1,4 +1,4 @@
-# pgindexer
+# canopy-indexer
 
 PostgreSQL indexer for the Canopy blockchain.
 

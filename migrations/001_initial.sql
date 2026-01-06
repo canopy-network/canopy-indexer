@@ -1,4 +1,4 @@
--- pgindexer schema
+-- canopy-indexer schema
 -- Mirrors ClickHouse canopyx_cross_chain database for PostgreSQL
 
 -- ============================================================================

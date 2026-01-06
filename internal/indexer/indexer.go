@@ -6,8 +6,8 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/canopy-network/canopy-indexer/pkg/rpc"
 	"github.com/canopy-network/canopy/lib"
-	"github.com/canopy-network/pgindexer/pkg/rpc"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 

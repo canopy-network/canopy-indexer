@@ -12,16 +12,16 @@ RUN apk add --no-cache git gcc musl-dev
 COPY canopy/main ./canopy/main
 
 # Copy go mod files
-COPY pgindexer/go.mod pgindexer/go.sum ./pgindexer/
+COPY canopy-indexer/go.mod canopy-indexer/go.sum ./canopy-indexer/
 
-WORKDIR /workspace/pgindexer
+WORKDIR /workspace/canopy-indexer
 
 # Download dependencies with cache mount
 RUN --mount=type=cache,target=/go/pkg/mod \
     go mod download
 
 # Copy source code
-COPY pgindexer/ ./
+COPY canopy-indexer/ ./
 
 # Build with cache mounts for faster rebuilds
 RUN --mount=type=cache,target=/go/pkg/mod \
@@ -37,7 +37,7 @@ WORKDIR /app
 RUN apk add --no-cache ca-certificates tzdata
 
 # Copy binary from builder
-COPY --from=builder /workspace/pgindexer/bin/indexer /app/bin/indexer
+COPY --from=builder /workspace/canopy-indexer/bin/indexer /app/bin/indexer
 
 # Create non-root user
 RUN adduser -D -g '' appuser

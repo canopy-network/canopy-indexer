@@ -8,8 +8,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/canopy-network/pgindexer/internal/indexer"
-	"github.com/canopy-network/pgindexer/pkg/rpc"
+	"github.com/canopy-network/canopy-indexer/internal/indexer"
+	"github.com/canopy-network/canopy-indexer/pkg/rpc"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"golang.org/x/sync/errgroup"
 )

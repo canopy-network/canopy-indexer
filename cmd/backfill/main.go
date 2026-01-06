@@ -10,11 +10,11 @@ import (
 	"sync"
 	"syscall"
 
-	"github.com/canopy-network/pgindexer/internal/backfill"
-	"github.com/canopy-network/pgindexer/internal/config"
-	"github.com/canopy-network/pgindexer/internal/db"
-	"github.com/canopy-network/pgindexer/internal/indexer"
-	"github.com/canopy-network/pgindexer/pkg/rpc"
+	"github.com/canopy-network/canopy-indexer/internal/backfill"
+	"github.com/canopy-network/canopy-indexer/internal/config"
+	"github.com/canopy-network/canopy-indexer/internal/db"
+	"github.com/canopy-network/canopy-indexer/internal/indexer"
+	"github.com/canopy-network/canopy-indexer/pkg/rpc"
 )
 
 func main() {
@@ -61,7 +61,7 @@ func main() {
 		chainsToBackfill = cfg.Chains
 	}
 
-	slog.Info("pgindexer backfill starting",
+	slog.Info("canopy-indexer backfill starting",
 		"chains", len(chainsToBackfill),
 	)
 

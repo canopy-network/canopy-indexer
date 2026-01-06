@@ -1,4 +1,4 @@
-module github.com/canopy-network/pgindexer
+module github.com/canopy-network/canopy-indexer
 
 go 1.24.0
 

@@ -4,9 +4,9 @@ import (
 	"context"
 	"time"
 
+	"github.com/canopy-network/canopy-indexer/pkg/rpc"
 	"github.com/canopy-network/canopy/fsm"
 	"github.com/canopy-network/canopy/lib"
-	"github.com/canopy-network/pgindexer/pkg/rpc"
 	"golang.org/x/sync/errgroup"
 )
 
