@@ -9,7 +9,6 @@ import (
 	"github.com/canopy-network/canopy/lib"
 	"github.com/canopy-network/pgindexer/pkg/rpc"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"golang.org/x/sync/errgroup"
 )
 
 // Indexer handles the core indexing logic.
@@ -35,7 +34,9 @@ func (idx *Indexer) rpcForChain(chainID uint64) (*rpc.HTTPClient, error) {
 	return client, nil
 }
 
-// IndexBlock indexes a single block at the given height.
+// IndexBlock indexes a single block at the given height using two-phase architecture:
+// Phase 1 (Fetch): All RPC calls in parallel - any failure returns error (NACK)
+// Phase 2 (Write): All DB writes in single transaction - any failure rolls back (NACK)
 func (idx *Indexer) IndexBlock(ctx context.Context, chainID, height uint64) error {
 	start := time.Now()
 
@@ -72,32 +73,24 @@ func (idx *Indexer) IndexBlock(ctx context.Context, chainID, height uint64) erro
 	}
 	blockTime := time.UnixMicro(int64(block.BlockHeader.Time))
 
-	// 2. Run all indexers in parallel
-	g, gCtx := errgroup.WithContext(ctx)
-
-	g.Go(func() error { return idx.runIndexer(gCtx, "block", chainID, height, blockTime, block) })
-	g.Go(func() error { return idx.runIndexer(gCtx, "transactions", chainID, height, blockTime, nil) })
-	g.Go(func() error { return idx.runIndexer(gCtx, "events", chainID, height, blockTime, nil) })
-	g.Go(func() error { return idx.runIndexer(gCtx, "accounts", chainID, height, blockTime, nil) })
-	g.Go(func() error { return idx.runIndexer(gCtx, "validators", chainID, height, blockTime, nil) })
-	g.Go(func() error { return idx.runIndexer(gCtx, "pools", chainID, height, blockTime, nil) })
-	g.Go(func() error { return idx.runIndexer(gCtx, "orders", chainID, height, blockTime, nil) })
-	g.Go(func() error { return idx.runIndexer(gCtx, "dex_prices", chainID, height, blockTime, nil) })
-	g.Go(func() error { return idx.runIndexer(gCtx, "dex_batch", chainID, height, blockTime, nil) })
-	g.Go(func() error { return idx.runIndexer(gCtx, "params", chainID, height, blockTime, nil) })
-	g.Go(func() error { return idx.runIndexer(gCtx, "supply", chainID, height, blockTime, nil) })
-	g.Go(func() error { return idx.runIndexer(gCtx, "committees", chainID, height, blockTime, nil) })
-
-	if err := g.Wait(); err != nil {
-		return err
+	// 2. Phase 1: Fetch all data in parallel (any RPC failure → return error → NACK)
+	// On retry, cached RPC calls return immediately from the 10-block rolling cache
+	data, err := idx.fetchAllData(ctx, rpcClient, chainID, height, block, blockTime)
+	if err != nil {
+		return fmt.Errorf("fetch data: %w", err)
 	}
 
-	// 3. Build block summary from indexed data
+	// 3. Phase 2: Write all data atomically (any DB failure → rollback → NACK)
+	if err := idx.writeAllData(ctx, data); err != nil {
+		return fmt.Errorf("write data: %w", err)
+	}
+
+	// 4. Build block summary from indexed data
 	if err := idx.buildBlockSummary(ctx, chainID, height, blockTime); err != nil {
 		return fmt.Errorf("build block summary: %w", err)
 	}
 
-	// 4. Update index progress
+	// 5. Update index progress
 	if err := idx.updateProgress(ctx, chainID, height); err != nil {
 		return fmt.Errorf("update progress: %w", err)
 	}
@@ -108,44 +101,6 @@ func (idx *Indexer) IndexBlock(ctx context.Context, chainID, height uint64) erro
 		"duration", time.Since(start),
 	)
 
-	return nil
-}
-
-// runIndexer wraps an indexer function with logging to identify failures.
-func (idx *Indexer) runIndexer(ctx context.Context, name string, chainID, height uint64, blockTime time.Time, block *lib.BlockResult) error {
-	var err error
-	switch name {
-	case "block":
-		err = idx.saveBlock(ctx, chainID, height, blockTime, block)
-	case "transactions":
-		err = idx.indexTransactions(ctx, chainID, height, blockTime)
-	case "events":
-		err = idx.indexEvents(ctx, chainID, height, blockTime)
-	case "accounts":
-		err = idx.indexAccounts(ctx, chainID, height, blockTime)
-	case "validators":
-		err = idx.indexValidators(ctx, chainID, height, blockTime)
-	case "pools":
-		err = idx.indexPools(ctx, chainID, height, blockTime)
-	case "orders":
-		err = idx.indexOrders(ctx, chainID, height, blockTime)
-	case "dex_prices":
-		err = idx.indexDexPrices(ctx, chainID, height, blockTime)
-	case "dex_batch":
-		err = idx.indexDexBatch(ctx, chainID, height, blockTime)
-	case "params":
-		err = idx.indexParams(ctx, chainID, height, blockTime)
-	case "supply":
-		err = idx.indexSupply(ctx, chainID, height, blockTime)
-	case "committees":
-		err = idx.indexCommittees(ctx, chainID, height, blockTime)
-	default:
-		return fmt.Errorf("unknown indexer: %s", name)
-	}
-	if err != nil {
-		slog.Error("indexer failed", "indexer", name, "height", height, "err", err)
-		return fmt.Errorf("%s: %w", name, err)
-	}
 	return nil
 }
 

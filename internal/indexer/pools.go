@@ -1,36 +1,15 @@
 package indexer
 
 import (
-	"context"
 	"strconv"
-	"time"
 
-	"github.com/canopy-network/canopy/fsm"
 	"github.com/canopy-network/pgindexer/pkg/transform"
 	"github.com/jackc/pgx/v5"
 )
 
-func (idx *Indexer) indexPools(ctx context.Context, chainID, height uint64, blockTime time.Time) error {
-	rpc, err := idx.rpcForChain(chainID)
-	if err != nil {
-		return err
-	}
-	pools, err := rpc.PoolsByHeight(ctx, height)
-	if err != nil {
-		return err
-	}
-
-	if len(pools) == 0 {
-		return nil
-	}
-
-	// Fetch previous height pools for change detection
-	var prevPools []*fsm.Pool
-	if height > 1 {
-		prevPools, err = rpc.PoolsByHeight(ctx, height-1)
-		if err != nil {
-			return err
-		}
+func (idx *Indexer) writePools(batch *pgx.Batch, data *BlockData) {
+	if len(data.PoolsCurrent) == 0 {
+		return
 	}
 
 	// Build previous state maps for change detection
@@ -40,7 +19,7 @@ func (idx *Indexer) indexPools(ctx context.Context, chainID, height uint64, bloc
 	}
 	prevHolderMap := make(map[string]prevHolder) // key: "poolID:address"
 
-	for _, p := range prevPools {
+	for _, p := range data.PoolsPrevious {
 		for _, pp := range p.Points {
 			key := poolHolderKey(p.Id, transform.BytesToHex(pp.Address))
 			prevHolderMap[key] = prevHolder{
@@ -50,10 +29,7 @@ func (idx *Indexer) indexPools(ctx context.Context, chainID, height uint64, bloc
 		}
 	}
 
-	batch := &pgx.Batch{}
-	numQueries := 0
-
-	for _, pool := range pools {
+	for _, pool := range data.PoolsCurrent {
 		batch.Queue(`
 			INSERT INTO pools (
 				chain_id, pool_id, pool_chain_id, amount, total_points, lp_count,
@@ -64,17 +40,16 @@ func (idx *Indexer) indexPools(ctx context.Context, chainID, height uint64, bloc
 				total_points = EXCLUDED.total_points,
 				lp_count = EXCLUDED.lp_count
 		`,
-			chainID,
+			data.ChainID,
 			pool.Id,
 			transform.ExtractChainIDFromPoolID(pool.Id),
 			pool.Amount,
 			pool.TotalPoolPoints,
 			len(pool.Points),
-			height,
-			blockTime,
+			data.Height,
+			data.BlockTime,
 			0, 0, 0, 0, // pool IDs - derive based on pool type
 		)
-		numQueries++
 
 		// Extract pool points holders with change detection
 		holders := transform.PoolPointsHoldersFromFSM(pool)
@@ -95,31 +70,19 @@ func (idx *Indexer) indexPools(ctx context.Context, chainID, height uint64, bloc
 					) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 					ON CONFLICT (chain_id, address, pool_id, height) DO NOTHING
 				`,
-					chainID,
+					data.ChainID,
 					h.Address,
 					h.PoolID,
 					h.Committee,
 					h.Points,
 					h.LiquidityPoolPoints,
 					h.LiquidityPoolID,
-					height,
-					blockTime,
+					data.Height,
+					data.BlockTime,
 				)
-				numQueries++
 			}
 		}
 	}
-
-	br := idx.db.SendBatch(ctx, batch)
-	defer br.Close()
-
-	for i := 0; i < numQueries; i++ {
-		if _, err := br.Exec(); err != nil {
-			return err
-		}
-	}
-
-	return nil
 }
 
 // poolHolderKey creates a unique key for a pool holder.

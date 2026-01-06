@@ -122,3 +122,25 @@ func (idx *Indexer) IndexBlock(ctx, chainID, height) error {
 - **Clear error semantics**: RPC fail OR DB fail → NACK → redelivery
 - **No DB dependency**: DEX batch uses in-memory events
 - **RPC deduplication**: Subsidized/Retired called once (was twice)
+- **RPC caching**: On retry, successful RPC calls return from cache (no re-fetch)
+
+---
+
+## Progress
+
+- [x] Extend RPC caching to all height-based methods (`pkg/rpc/httpclient.go`)
+- [x] Create `types.go` with `BlockData` struct
+- [x] Create `fetch.go` with `fetchAllData()`
+- [ ] Create `write.go` with `writeAllData()`
+- [ ] Replace `block.go` saveBlock → writeBlock
+- [ ] Replace `transactions.go` indexTransactions → writeTransactions
+- [ ] Replace `events.go` indexEvents → writeEvents
+- [ ] Replace `accounts.go` indexAccounts → writeAccounts
+- [ ] Replace `orders.go` indexOrders → writeOrders
+- [ ] Replace `params.go` indexParams → writeParams
+- [ ] Replace `supply.go` indexSupply → writeSupply
+- [ ] Replace `pools.go` indexPools → writePools
+- [ ] Replace `committees.go` indexCommittees → writeCommittees
+- [ ] Replace `validators.go` (3 functions) → writeValidators
+- [ ] Replace `dex.go` with parseDexEventsFromSlice and write functions
+- [ ] Update `indexer.go` to two-phase approach

@@ -1,30 +1,19 @@
 package indexer
 
 import (
-	"context"
-	"time"
-
 	"github.com/canopy-network/pgindexer/pkg/transform"
+	"github.com/jackc/pgx/v5"
 )
 
-func (idx *Indexer) indexParams(ctx context.Context, chainID, height uint64, blockTime time.Time) error {
-	rpc, err := idx.rpcForChain(chainID)
-	if err != nil {
-		return err
-	}
-	params, err := rpc.AllParamsByHeight(ctx, height)
-	if err != nil {
-		return err
-	}
-
-	p := transform.ParamsFromFSM(params)
+func (idx *Indexer) writeParams(batch *pgx.Batch, data *BlockData) {
+	p := transform.ParamsFromFSM(data.Params)
 	if p == nil {
-		return nil
+		return
 	}
-	p.Height = height
-	p.HeightTime = blockTime
+	p.Height = data.Height
+	p.HeightTime = data.BlockTime
 
-	_, err = idx.db.Exec(ctx, `
+	batch.Queue(`
 		INSERT INTO params (
 			chain_id, height, height_time,
 			block_size, protocol_version, root_chain_id, retired,
@@ -66,7 +55,7 @@ func (idx *Indexer) indexParams(ctx context.Context, chainID, height uint64, blo
 		)
 		ON CONFLICT (chain_id, height) DO NOTHING
 	`,
-		chainID, p.Height, p.HeightTime,
+		data.ChainID, p.Height, p.HeightTime,
 		p.BlockSize,
 		p.ProtocolVersion,
 		p.RootChainID,
@@ -108,6 +97,4 @@ func (idx *Indexer) indexParams(ctx context.Context, chainID, height uint64, blo
 		p.DexLiquidityWithdrawFee,
 		p.DaoRewardPercentage,
 	)
-
-	return err
 }

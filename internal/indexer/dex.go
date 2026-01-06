@@ -1,8 +1,7 @@
 package indexer
 
 import (
-	"context"
-	"time"
+	"encoding/json"
 
 	"github.com/canopy-network/canopy/lib"
 	"github.com/canopy-network/pgindexer/pkg/transform"
@@ -17,22 +16,8 @@ const (
 	DexStateComplete = "complete"
 )
 
-func (idx *Indexer) indexDexPrices(ctx context.Context, chainID, height uint64, blockTime time.Time) error {
-	rpc, err := idx.rpcForChain(chainID)
-	if err != nil {
-		return err
-	}
-	prices, err := rpc.DexPricesByHeight(ctx, height)
-	if err != nil {
-		return err
-	}
-
-	if len(prices) == 0 {
-		return nil
-	}
-
-	batch := &pgx.Batch{}
-	for _, price := range prices {
+func (idx *Indexer) writeDexPrices(batch *pgx.Batch, data *BlockData) {
+	for _, price := range data.DexPrices {
 		p := transform.DexPriceFromLib(price)
 		batch.Queue(`
 			INSERT INTO dex_prices (
@@ -44,27 +29,16 @@ func (idx *Indexer) indexDexPrices(ctx context.Context, chainID, height uint64, 
 				remote_pool = EXCLUDED.remote_pool,
 				price_e6 = EXCLUDED.price_e6
 		`,
-			chainID,
+			data.ChainID,
 			p.LocalChainID,
 			p.RemoteChainID,
-			height,
-			blockTime,
+			data.Height,
+			data.BlockTime,
 			p.LocalPool,
 			p.RemotePool,
 			p.PriceE6,
 		)
 	}
-
-	br := idx.db.SendBatch(ctx, batch)
-	defer br.Close()
-
-	for range prices {
-		if _, err := br.Exec(); err != nil {
-			return err
-		}
-	}
-
-	return nil
 }
 
 // dexEvent holds parsed event data for correlation
@@ -93,96 +67,51 @@ type h1Maps struct {
 	WithdrawalsPending map[string]*lib.DexLiquidityWithdraw
 }
 
-func (idx *Indexer) indexDexBatch(ctx context.Context, chainID, height uint64, blockTime time.Time) error {
-	rpc, err := idx.rpcForChain(chainID)
-	if err != nil {
-		return err
-	}
-
-	// Fetch current batch (locked items)
-	currentBatches, err := rpc.AllDexBatchesByHeight(ctx, height)
-	if err != nil {
-		return err
-	}
-
-	// Fetch next batch (pending items)
-	nextBatches, err := rpc.AllNextDexBatchesByHeight(ctx, height)
-	if err != nil {
-		return err
-	}
-
-	// Fetch H-1 batches for completion checking and change detection
-	var currentBatchesH1, nextBatchesH1 []*lib.DexBatch
-	if height > 1 {
-		currentBatchesH1, err = rpc.AllDexBatchesByHeight(ctx, height-1)
-		if err != nil {
-			return err
-		}
-		nextBatchesH1, err = rpc.AllNextDexBatchesByHeight(ctx, height-1)
-		if err != nil {
-			return err
-		}
-	}
-
-	// Query events from database for completion correlation
-	swapEvents, depositEvents, withdrawalEvents, err := idx.queryDexEvents(ctx, chainID, height)
-	if err != nil {
-		return err
-	}
+func (idx *Indexer) writeDexBatch(batch *pgx.Batch, data *BlockData) {
+	// Parse DEX events from in-memory Events slice (replaces queryDexEvents DB call)
+	swapEvents, depositEvents, withdrawalEvents := idx.parseDexEventsFromSlice(data.Events)
 
 	// Build H-1 comparison maps for change detection
-	h1 := idx.buildH1Maps(currentBatchesH1, nextBatchesH1)
+	h1 := idx.buildH1Maps(data.DexBatchesPreviousCurr, data.DexBatchesPreviousNext)
 
 	// Process DEX orders
-	if err := idx.processDexOrders(ctx, chainID, height, blockTime,
-		currentBatches, nextBatches, currentBatchesH1, h1, swapEvents); err != nil {
-		return err
-	}
+	idx.writeDexOrders(batch, data, h1, swapEvents)
 
 	// Process DEX deposits
-	if err := idx.processDexDeposits(ctx, chainID, height, blockTime,
-		currentBatches, nextBatches, currentBatchesH1, h1, depositEvents); err != nil {
-		return err
-	}
+	idx.writeDexDeposits(batch, data, h1, depositEvents)
 
 	// Process DEX withdrawals
-	return idx.processDexWithdrawals(ctx, chainID, height, blockTime,
-		currentBatches, nextBatches, currentBatchesH1, h1, withdrawalEvents)
+	idx.writeDexWithdrawals(batch, data, h1, withdrawalEvents)
 }
 
-// queryDexEvents queries events table for DEX-related events at height H
-func (idx *Indexer) queryDexEvents(ctx context.Context, chainID, height uint64) (
-	swapEvents, depositEvents, withdrawalEvents map[string]*dexEvent, err error,
+// parseDexEventsFromSlice parses DEX events from the in-memory Events slice.
+// Replaces queryDexEvents() which queried the database.
+func (idx *Indexer) parseDexEventsFromSlice(events []*lib.Event) (
+	swapEvents, depositEvents, withdrawalEvents map[string]*dexEvent,
 ) {
 	swapEvents = make(map[string]*dexEvent)
 	depositEvents = make(map[string]*dexEvent)
 	withdrawalEvents = make(map[string]*dexEvent)
 
-	// Query events from database
-	rows, err := idx.db.Query(ctx, `
-		SELECT event_type, msg
-		FROM events
-		WHERE chain_id = $1 AND height = $2
-		AND event_type IN ('dex-swap', 'dex-liquidity-deposit', 'dex-liquidity-withdraw')
-	`, chainID, height)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		var eventType string
-		var msg []byte
-		if err := rows.Scan(&eventType, &msg); err != nil {
-			return nil, nil, nil, err
+	for _, e := range events {
+		if e.EventType != "dex-swap" &&
+			e.EventType != "dex-liquidity-deposit" &&
+			e.EventType != "dex-liquidity-withdraw" {
+			continue
 		}
 
-		event, err := idx.parseDexEvent(eventType, msg)
+		// Marshal event message to JSON for parsing
+		msgJSON, err := json.Marshal(e.Msg)
+		if err != nil {
+			continue
+		}
+
+		event, err := idx.parseDexEvent(e.EventType, msgJSON)
 		if err != nil || event == nil || event.OrderID == "" {
 			continue
 		}
 
-		switch eventType {
+		switch e.EventType {
 		case "dex-swap":
 			swapEvents[event.OrderID] = event
 		case "dex-liquidity-deposit":
@@ -192,7 +121,7 @@ func (idx *Indexer) queryDexEvents(ctx context.Context, chainID, height uint64) 
 		}
 	}
 
-	return swapEvents, depositEvents, withdrawalEvents, rows.Err()
+	return swapEvents, depositEvents, withdrawalEvents
 }
 
 // parseDexEvent parses the event message JSON
@@ -275,13 +204,9 @@ func (idx *Indexer) buildH1Maps(currentBatchesH1, nextBatchesH1 []*lib.DexBatch)
 	return h1
 }
 
-func (idx *Indexer) processDexOrders(ctx context.Context, chainID, height uint64, blockTime time.Time,
-	currentBatches, nextBatches, currentBatchesH1 []*lib.DexBatch, h1 *h1Maps, swapEvents map[string]*dexEvent) error {
-
-	batch := &pgx.Batch{}
-
+func (idx *Indexer) writeDexOrders(batch *pgx.Batch, data *BlockData, h1 *h1Maps, swapEvents map[string]*dexEvent) {
 	// 1. Process COMPLETE orders: items from H-1 batch that have completion events at H
-	for _, b := range currentBatchesH1 {
+	for _, b := range data.DexBatchesPreviousCurr {
 		for _, order := range b.Orders {
 			orderID := transform.BytesToHex(order.OrderId)
 			if event, exists := swapEvents[orderID]; exists {
@@ -297,7 +222,7 @@ func (idx *Indexer) processDexOrders(ctx context.Context, chainID, height uint64
 						bought_amount = EXCLUDED.bought_amount,
 						local_origin = EXCLUDED.local_origin
 				`,
-					chainID,
+					data.ChainID,
 					orderID,
 					b.Committee,
 					transform.BytesToHex(order.Address),
@@ -309,15 +234,15 @@ func (idx *Indexer) processDexOrders(ctx context.Context, chainID, height uint64
 					event.BoughtAmount,
 					event.LocalOrigin,
 					b.LockedHeight,
-					height,
-					blockTime,
+					data.Height,
+					data.BlockTime,
 				)
 			}
 		}
 	}
 
 	// 2. Process LOCKED orders: items in current batch (with change detection)
-	for _, b := range currentBatches {
+	for _, b := range data.DexBatchesCurrent {
 		for _, order := range b.Orders {
 			orderID := transform.BytesToHex(order.OrderId)
 			address := transform.BytesToHex(order.Address)
@@ -342,7 +267,7 @@ func (idx *Indexer) processDexOrders(ctx context.Context, chainID, height uint64
 						state = EXCLUDED.state,
 						locked_height = EXCLUDED.locked_height
 				`,
-					chainID,
+					data.ChainID,
 					orderID,
 					b.Committee,
 					address,
@@ -350,15 +275,15 @@ func (idx *Indexer) processDexOrders(ctx context.Context, chainID, height uint64
 					order.RequestedAmount,
 					DexStateLocked,
 					b.LockedHeight,
-					height,
-					blockTime,
+					data.Height,
+					data.BlockTime,
 				)
 			}
 		}
 	}
 
 	// 3. Process PENDING orders: items in next batch (with change detection)
-	for _, b := range nextBatches {
+	for _, b := range data.DexBatchesNext {
 		for _, order := range b.Orders {
 			orderID := transform.BytesToHex(order.OrderId)
 			address := transform.BytesToHex(order.Address)
@@ -381,43 +306,24 @@ func (idx *Indexer) processDexOrders(ctx context.Context, chainID, height uint64
 					) VALUES ($1, $2, $3, $4, $5, $6, $7, false, 0, 0, false, 0, $8, $9)
 					ON CONFLICT (chain_id, order_id, height) DO NOTHING
 				`,
-					chainID,
+					data.ChainID,
 					orderID,
 					b.Committee,
 					address,
 					order.AmountForSale,
 					order.RequestedAmount,
 					DexStateFuture,
-					height,
-					blockTime,
+					data.Height,
+					data.BlockTime,
 				)
 			}
 		}
 	}
-
-	if batch.Len() == 0 {
-		return nil
-	}
-
-	br := idx.db.SendBatch(ctx, batch)
-	defer br.Close()
-
-	for i := 0; i < batch.Len(); i++ {
-		if _, err := br.Exec(); err != nil {
-			return err
-		}
-	}
-
-	return nil
 }
 
-func (idx *Indexer) processDexDeposits(ctx context.Context, chainID, height uint64, blockTime time.Time,
-	currentBatches, nextBatches, currentBatchesH1 []*lib.DexBatch, h1 *h1Maps, depositEvents map[string]*dexEvent) error {
-
-	batch := &pgx.Batch{}
-
+func (idx *Indexer) writeDexDeposits(batch *pgx.Batch, data *BlockData, h1 *h1Maps, depositEvents map[string]*dexEvent) {
 	// 1. Process COMPLETE deposits: items from H-1 batch that have completion events at H
-	for _, b := range currentBatchesH1 {
+	for _, b := range data.DexBatchesPreviousCurr {
 		for _, dep := range b.Deposits {
 			orderID := transform.BytesToHex(dep.OrderId)
 			if event, exists := depositEvents[orderID]; exists {
@@ -431,7 +337,7 @@ func (idx *Indexer) processDexDeposits(ctx context.Context, chainID, height uint
 						local_origin = EXCLUDED.local_origin,
 						points_received = EXCLUDED.points_received
 				`,
-					chainID,
+					data.ChainID,
 					orderID,
 					b.Committee,
 					transform.BytesToHex(dep.Address),
@@ -439,15 +345,15 @@ func (idx *Indexer) processDexDeposits(ctx context.Context, chainID, height uint
 					DexStateComplete,
 					event.LocalOrigin,
 					event.PointsReceived,
-					height,
-					blockTime,
+					data.Height,
+					data.BlockTime,
 				)
 			}
 		}
 	}
 
 	// 2. Process LOCKED deposits
-	for _, b := range currentBatches {
+	for _, b := range data.DexBatchesCurrent {
 		for _, dep := range b.Deposits {
 			orderID := transform.BytesToHex(dep.OrderId)
 			address := transform.BytesToHex(dep.Address)
@@ -469,21 +375,21 @@ func (idx *Indexer) processDexDeposits(ctx context.Context, chainID, height uint
 						state = EXCLUDED.state,
 						amount = EXCLUDED.amount
 				`,
-					chainID,
+					data.ChainID,
 					orderID,
 					b.Committee,
 					address,
 					dep.Amount,
 					DexStateLocked,
-					height,
-					blockTime,
+					data.Height,
+					data.BlockTime,
 				)
 			}
 		}
 	}
 
 	// 3. Process PENDING deposits
-	for _, b := range nextBatches {
+	for _, b := range data.DexBatchesNext {
 		for _, dep := range b.Deposits {
 			orderID := transform.BytesToHex(dep.OrderId)
 			address := transform.BytesToHex(dep.Address)
@@ -503,42 +409,23 @@ func (idx *Indexer) processDexDeposits(ctx context.Context, chainID, height uint
 					) VALUES ($1, $2, $3, $4, $5, $6, false, 0, $7, $8)
 					ON CONFLICT (chain_id, order_id, height) DO NOTHING
 				`,
-					chainID,
+					data.ChainID,
 					orderID,
 					b.Committee,
 					address,
 					dep.Amount,
 					DexStatePending,
-					height,
-					blockTime,
+					data.Height,
+					data.BlockTime,
 				)
 			}
 		}
 	}
-
-	if batch.Len() == 0 {
-		return nil
-	}
-
-	br := idx.db.SendBatch(ctx, batch)
-	defer br.Close()
-
-	for i := 0; i < batch.Len(); i++ {
-		if _, err := br.Exec(); err != nil {
-			return err
-		}
-	}
-
-	return nil
 }
 
-func (idx *Indexer) processDexWithdrawals(ctx context.Context, chainID, height uint64, blockTime time.Time,
-	currentBatches, nextBatches, currentBatchesH1 []*lib.DexBatch, h1 *h1Maps, withdrawalEvents map[string]*dexEvent) error {
-
-	batch := &pgx.Batch{}
-
+func (idx *Indexer) writeDexWithdrawals(batch *pgx.Batch, data *BlockData, h1 *h1Maps, withdrawalEvents map[string]*dexEvent) {
 	// 1. Process COMPLETE withdrawals: items from H-1 batch that have completion events at H
-	for _, b := range currentBatchesH1 {
+	for _, b := range data.DexBatchesPreviousCurr {
 		for _, w := range b.Withdrawals {
 			orderID := transform.BytesToHex(w.OrderId)
 			if event, exists := withdrawalEvents[orderID]; exists {
@@ -553,7 +440,7 @@ func (idx *Indexer) processDexWithdrawals(ctx context.Context, chainID, height u
 						remote_amount = EXCLUDED.remote_amount,
 						points_burned = EXCLUDED.points_burned
 				`,
-					chainID,
+					data.ChainID,
 					orderID,
 					b.Committee,
 					transform.BytesToHex(w.Address),
@@ -562,15 +449,15 @@ func (idx *Indexer) processDexWithdrawals(ctx context.Context, chainID, height u
 					event.LocalAmount,
 					event.RemoteAmount,
 					event.PointsBurned,
-					height,
-					blockTime,
+					data.Height,
+					data.BlockTime,
 				)
 			}
 		}
 	}
 
 	// 2. Process LOCKED withdrawals
-	for _, b := range currentBatches {
+	for _, b := range data.DexBatchesCurrent {
 		for _, w := range b.Withdrawals {
 			orderID := transform.BytesToHex(w.OrderId)
 			address := transform.BytesToHex(w.Address)
@@ -592,21 +479,21 @@ func (idx *Indexer) processDexWithdrawals(ctx context.Context, chainID, height u
 						state = EXCLUDED.state,
 						percent = EXCLUDED.percent
 				`,
-					chainID,
+					data.ChainID,
 					orderID,
 					b.Committee,
 					address,
 					w.Percent,
 					DexStateLocked,
-					height,
-					blockTime,
+					data.Height,
+					data.BlockTime,
 				)
 			}
 		}
 	}
 
 	// 3. Process PENDING withdrawals
-	for _, b := range nextBatches {
+	for _, b := range data.DexBatchesNext {
 		for _, w := range b.Withdrawals {
 			orderID := transform.BytesToHex(w.OrderId)
 			address := transform.BytesToHex(w.Address)
@@ -626,31 +513,16 @@ func (idx *Indexer) processDexWithdrawals(ctx context.Context, chainID, height u
 					) VALUES ($1, $2, $3, $4, $5, $6, 0, 0, 0, $7, $8)
 					ON CONFLICT (chain_id, order_id, height) DO NOTHING
 				`,
-					chainID,
+					data.ChainID,
 					orderID,
 					b.Committee,
 					address,
 					w.Percent,
 					DexStatePending,
-					height,
-					blockTime,
+					data.Height,
+					data.BlockTime,
 				)
 			}
 		}
 	}
-
-	if batch.Len() == 0 {
-		return nil
-	}
-
-	br := idx.db.SendBatch(ctx, batch)
-	defer br.Close()
-
-	for i := 0; i < batch.Len(); i++ {
-		if _, err := br.Exec(); err != nil {
-			return err
-		}
-	}
-
-	return nil
 }

@@ -298,6 +298,9 @@ func (c *HTTPClient) ChainHead(ctx context.Context) (uint64, error) {
 
 // BlockByHeight fetches a block at the given height.
 func (c *HTTPClient) BlockByHeight(ctx context.Context, height uint64) (*lib.BlockResult, error) {
+	if cached, ok := getCache[*lib.BlockResult](c, blockByHeightPath, height); ok {
+		return cached, nil
+	}
 	// Pre-allocate nested pointer structs so json.Unmarshal can call their custom UnmarshalJSON
 	resp := lib.BlockResult{
 		BlockHeader: &lib.BlockHeader{},
@@ -310,22 +313,47 @@ func (c *HTTPClient) BlockByHeight(ctx context.Context, height uint64) (*lib.Blo
 	if resp.BlockHeader.Height != height {
 		return nil, fmt.Errorf("block not ready: requested height %d, got %d", height, resp.BlockHeader.Height)
 	}
+	setCache(c, blockByHeightPath, height, &resp)
 	return &resp, nil
 }
 
 // TxsByHeight fetches transactions at the given height.
 func (c *HTTPClient) TxsByHeight(ctx context.Context, height uint64) ([]*lib.TxResult, error) {
-	return listPaged[*lib.TxResult](ctx, c, txsByHeightPath, QueryByHeightRequest{Height: height})
+	if cached, ok := getCache[[]*lib.TxResult](c, txsByHeightPath, height); ok {
+		return cached, nil
+	}
+	resp, err := listPaged[*lib.TxResult](ctx, c, txsByHeightPath, QueryByHeightRequest{Height: height})
+	if err != nil {
+		return nil, err
+	}
+	setCache(c, txsByHeightPath, height, resp)
+	return resp, nil
 }
 
 // EventsByHeight fetches events at the given height.
 func (c *HTTPClient) EventsByHeight(ctx context.Context, height uint64) ([]*lib.Event, error) {
-	return listPaged[*lib.Event](ctx, c, eventsByHeightPath, QueryByHeightRequest{Height: height})
+	if cached, ok := getCache[[]*lib.Event](c, eventsByHeightPath, height); ok {
+		return cached, nil
+	}
+	resp, err := listPaged[*lib.Event](ctx, c, eventsByHeightPath, QueryByHeightRequest{Height: height})
+	if err != nil {
+		return nil, err
+	}
+	setCache(c, eventsByHeightPath, height, resp)
+	return resp, nil
 }
 
 // AccountsByHeight fetches accounts at the given height.
 func (c *HTTPClient) AccountsByHeight(ctx context.Context, height uint64) ([]*fsm.Account, error) {
-	return listPaged[*fsm.Account](ctx, c, accountsByHeightPath, QueryByHeightRequest{Height: height})
+	if cached, ok := getCache[[]*fsm.Account](c, accountsByHeightPath, height); ok {
+		return cached, nil
+	}
+	resp, err := listPaged[*fsm.Account](ctx, c, accountsByHeightPath, QueryByHeightRequest{Height: height})
+	if err != nil {
+		return nil, err
+	}
+	setCache(c, accountsByHeightPath, height, resp)
+	return resp, nil
 }
 
 // ValidatorsByHeight fetches validators at the given height.
@@ -344,6 +372,9 @@ func (c *HTTPClient) ValidatorsByHeight(ctx context.Context, height uint64) ([]*
 // OrdersByHeight fetches orders at the given height.
 // Note: This endpoint returns an array of OrderBook objects, each containing orders for a chain.
 func (c *HTTPClient) OrdersByHeight(ctx context.Context, height uint64) ([]*lib.SellOrder, error) {
+	if cached, ok := getCache[[]*lib.SellOrder](c, ordersByHeightPath, height); ok {
+		return cached, nil
+	}
 	var orderBooks []*lib.OrderBook
 	if err := c.doJSON(ctx, http.MethodPost, ordersByHeightPath, QueryByHeightRequest{Height: height}, &orderBooks); err != nil {
 		return nil, err
@@ -354,16 +385,21 @@ func (c *HTTPClient) OrdersByHeight(ctx context.Context, height uint64) ([]*lib.
 	for _, ob := range orderBooks {
 		allOrders = append(allOrders, ob.Orders...)
 	}
+	setCache(c, ordersByHeightPath, height, allOrders)
 	return allOrders, nil
 }
 
 // DexPricesByHeight fetches DEX prices at the given height.
 // Note: This endpoint returns a plain array, not a paginated response.
 func (c *HTTPClient) DexPricesByHeight(ctx context.Context, height uint64) ([]*lib.DexPrice, error) {
+	if cached, ok := getCache[[]*lib.DexPrice](c, dexPricePath, height); ok {
+		return cached, nil
+	}
 	var resp []*lib.DexPrice
 	if err := c.doJSON(ctx, http.MethodPost, dexPricePath, QueryByHeightRequest{Height: height}, &resp); err != nil {
 		return nil, err
 	}
+	setCache(c, dexPricePath, height, resp)
 	return resp, nil
 }
 
@@ -410,10 +446,14 @@ func (c *HTTPClient) AllNextDexBatchesByHeight(ctx context.Context, height uint6
 
 // AllParamsByHeight fetches all params at the given height.
 func (c *HTTPClient) AllParamsByHeight(ctx context.Context, height uint64) (*fsm.Params, error) {
+	if cached, ok := getCache[*fsm.Params](c, allParamsPath, height); ok {
+		return cached, nil
+	}
 	var resp fsm.Params
 	if err := c.doJSON(ctx, http.MethodPost, allParamsPath, QueryByHeightRequest{Height: height}, &resp); err != nil {
 		return nil, err
 	}
+	setCache(c, allParamsPath, height, &resp)
 	return &resp, nil
 }
 
@@ -455,12 +495,16 @@ func (c *HTTPClient) DoubleSignersByHeight(ctx context.Context, height uint64) (
 // CommitteesDataByHeight fetches committees data at the given height.
 // Note: This endpoint returns {"list": [...]} not a paginated response.
 func (c *HTTPClient) CommitteesDataByHeight(ctx context.Context, height uint64) ([]*lib.CommitteeData, error) {
+	if cached, ok := getCache[[]*lib.CommitteeData](c, committeesDataPath, height); ok {
+		return cached, nil
+	}
 	var resp struct {
 		List []*lib.CommitteeData `json:"list"`
 	}
 	if err := c.doJSON(ctx, http.MethodPost, committeesDataPath, QueryByHeightRequest{Height: height}, &resp); err != nil {
 		return nil, err
 	}
+	setCache(c, committeesDataPath, height, resp.List)
 	return resp.List, nil
 }
 
@@ -494,10 +538,14 @@ func (c *HTTPClient) RetiredCommitteesByHeight(ctx context.Context, height uint6
 
 // SupplyByHeight fetches supply at the given height.
 func (c *HTTPClient) SupplyByHeight(ctx context.Context, height uint64) (*fsm.Supply, error) {
+	if cached, ok := getCache[*fsm.Supply](c, supplyPath, height); ok {
+		return cached, nil
+	}
 	var resp fsm.Supply
 	if err := c.doJSON(ctx, http.MethodPost, supplyPath, QueryByHeightRequest{Height: height}, &resp); err != nil {
 		return nil, err
 	}
+	setCache(c, supplyPath, height, &resp)
 	return &resp, nil
 }
 

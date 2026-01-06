@@ -1,29 +1,12 @@
 package indexer
 
 import (
-	"context"
-	"time"
-
 	"github.com/canopy-network/pgindexer/pkg/transform"
 	"github.com/jackc/pgx/v5"
 )
 
-func (idx *Indexer) indexOrders(ctx context.Context, chainID, height uint64, blockTime time.Time) error {
-	rpc, err := idx.rpcForChain(chainID)
-	if err != nil {
-		return err
-	}
-	orders, err := rpc.OrdersByHeight(ctx, height)
-	if err != nil {
-		return err
-	}
-
-	if len(orders) == 0 {
-		return nil
-	}
-
-	batch := &pgx.Batch{}
-	for _, order := range orders {
+func (idx *Indexer) writeOrders(batch *pgx.Batch, data *BlockData) {
+	for _, order := range data.Orders {
 		o := transform.OrderFromLib(order)
 		batch.Queue(`
 			INSERT INTO orders (
@@ -36,7 +19,7 @@ func (idx *Indexer) indexOrders(ctx context.Context, chainID, height uint64, blo
 				requested_amount = EXCLUDED.requested_amount,
 				status = EXCLUDED.status
 		`,
-			chainID,
+			data.ChainID,
 			o.OrderID,
 			o.Committee,
 			"",                     // data
@@ -48,19 +31,8 @@ func (idx *Indexer) indexOrders(ctx context.Context, chainID, height uint64, blo
 			o.BuyerChainDeadline,   // buyer_chain_deadline
 			o.SellersSendAddress,   // sellers_send_address
 			o.Status,               // status
-			height,
-			blockTime,
+			data.Height,
+			data.BlockTime,
 		)
 	}
-
-	br := idx.db.SendBatch(ctx, batch)
-	defer br.Close()
-
-	for range orders {
-		if _, err := br.Exec(); err != nil {
-			return err
-		}
-	}
-
-	return nil
 }

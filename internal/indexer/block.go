@@ -1,17 +1,14 @@
 package indexer
 
 import (
-	"context"
-	"time"
-
-	"github.com/canopy-network/canopy/lib"
 	"github.com/canopy-network/pgindexer/pkg/transform"
+	"github.com/jackc/pgx/v5"
 )
 
-func (idx *Indexer) saveBlock(ctx context.Context, chainID, height uint64, blockTime time.Time, block *lib.BlockResult) error {
-	b := transform.BlockFromResult(block)
+func (idx *Indexer) writeBlock(batch *pgx.Batch, data *BlockData) {
+	b := transform.BlockFromResult(data.Block)
 
-	_, err := idx.db.Exec(ctx, `
+	batch.Queue(`
 		INSERT INTO blocks (chain_id, height, height_time, block_hash, proposer_address, total_txs, num_txs)
 		VALUES ($1, $2, $3, $4, $5, $6, $7)
 		ON CONFLICT (chain_id, height) DO UPDATE SET
@@ -20,13 +17,12 @@ func (idx *Indexer) saveBlock(ctx context.Context, chainID, height uint64, block
 			total_txs = EXCLUDED.total_txs,
 			num_txs = EXCLUDED.num_txs
 	`,
-		chainID,
-		height,
-		blockTime,
+		data.ChainID,
+		data.Height,
+		data.BlockTime,
 		b.Hash,
 		b.ProposerAddress,
 		b.TotalTxs,
 		b.NumTxs,
 	)
-	return err
 }
