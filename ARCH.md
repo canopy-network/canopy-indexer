@@ -86,3 +86,49 @@ Fills gaps in indexed data:
 3. Each block uses the same two-phase `IndexBlock()` path
 4. Failures are logged but don't halt the backfill
 5. Progress reported at configurable intervals
+
+## Transform Layer
+
+The `pkg/transform` package converts RPC responses (protobuf) to database models:
+
+- **Validators**: Derives status (`active`/`paused`/`unstaking`) from height fields
+- **Pools**: Extracts chain ID from pool ID encoding, categorizes pool type (reward/holding/liquidity/escrow)
+- **DEX**: Parses event JSON to correlate swap results with orders
+- **Common**: Hex encoding for addresses/keys, timestamp conversion
+
+## Change Detection (Snapshot-on-Change)
+
+To avoid writing redundant rows, the indexer compares state at height H vs H-1:
+
+```
+Fetch H-1 data ──┬──▶ Build lookup maps (address → state)
+Fetch H data ────┴──▶ Compare each item → only INSERT if changed
+```
+
+**Validators**: Snapshot if stake, status, committees, output, or flags changed
+**Pools**: Snapshot if amount, total points, or holder points changed
+**Non-Signers**: Snapshot if counter changed; detect resets (existed at H-1, gone at H)
+**Double-Signers**: Snapshot if evidence count changed
+
+This reduces write volume significantly for stable state.
+
+## DEX State Machine
+
+DEX orders, deposits, and withdrawals follow a lifecycle tracked via state transitions:
+
+```
+┌─────────┐     ┌─────────┐     ┌──────────┐
+│ FUTURE  │────▶│ LOCKED  │────▶│ COMPLETE │
+│ (next)  │     │ (curr)  │     │ (event)  │
+└─────────┘     └─────────┘     └──────────┘
+```
+
+- **FUTURE/PENDING**: Item appears in "next batch" (queued for next block)
+- **LOCKED**: Item moves to "current batch" (being processed)
+- **COMPLETE**: Completion event emitted with results (success, amounts)
+
+Processing correlates DEX events with batch data:
+1. Parse `dex-swap`, `dex-liquidity-deposit`, `dex-liquidity-withdraw` events
+2. Build H-1 maps from previous block's current/next batches
+3. Match events to orders → write COMPLETE state with results
+4. Apply change detection for LOCKED/PENDING items
