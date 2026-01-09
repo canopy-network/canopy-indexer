@@ -10,13 +10,16 @@ import (
 
 	"github.com/canopy-network/canopy-indexer/internal/backfill"
 	"github.com/canopy-network/canopy-indexer/internal/config"
-	"github.com/canopy-network/canopy-indexer/internal/db"
 	"github.com/canopy-network/canopy-indexer/internal/indexer"
 	"github.com/canopy-network/canopy-indexer/internal/listener"
 	"github.com/canopy-network/canopy-indexer/internal/publisher"
 	"github.com/canopy-network/canopy-indexer/internal/worker"
 	"github.com/canopy-network/canopy-indexer/pkg/rpc"
+	"github.com/canopy-network/canopy-indexer/pkg/snapshot"
+	"github.com/canopy-network/canopy/lib"
+	"github.com/canopy-network/canopyx/pkg/db/postgres"
 	"github.com/redis/go-redis/v9"
+	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -39,13 +42,22 @@ func main() {
 		"ws_enabled", cfg.WSEnabled,
 	)
 
-	// Connect to PostgreSQL
-	pool, err := db.Connect(ctx, cfg.PostgresURL)
+	// Connect to PostgreSQL using postgres package
+	logger, err := zap.NewProduction()
+	if err != nil {
+		slog.Error("failed to create logger", "err", err)
+		os.Exit(1)
+	}
+	defer logger.Sync()
+
+	// Use default pool config for indexer
+	poolConfig := postgres.GetPoolConfigForComponent("indexer_chain")
+	client, err := postgres.New(ctx, logger, "indexer", poolConfig)
 	if err != nil {
 		slog.Error("failed to connect to postgres", "err", err)
 		os.Exit(1)
 	}
-	defer pool.Close()
+	defer client.Close()
 
 	// Connect to Redis
 	redisOpts, err := redis.ParseURL(cfg.RedisURL)
@@ -75,7 +87,7 @@ func main() {
 	defer pub.Close()
 
 	// Create indexer
-	idx := indexer.New(rpcClients, pool)
+	idx := indexer.New(rpcClients, &client)
 
 	// Create worker
 	wrk, err := worker.New(worker.Config{
@@ -94,9 +106,36 @@ func main() {
 	// Run all components
 	g, ctx := errgroup.WithContext(ctx)
 
-	// Only start WebSocket listener if enabled
-	if cfg.WSEnabled {
-		// For WebSocket mode, we need a single WS URL - not supported in multi-chain mock mode
+	// WebSocket Snapshot Mode - receives full IndexerSnapshot instead of just height
+	if cfg.WSSnapshotEnabled && cfg.WSSnapshotURL != "" {
+		chainID := cfg.WSSnapshotChainID
+		snapshotListener := listener.NewSnapshotListener(listener.SnapshotConfig{
+			URL:            cfg.WSSnapshotURL,
+			ChainID:        chainID,
+			MaxRetries:     cfg.WSMaxRetries,
+			ReconnectDelay: cfg.WSReconnectDelay,
+		}, func(snap *lib.IndexerSnapshot) error {
+			data, err := snapshot.Decode(snap, chainID)
+			if err != nil {
+				slog.Error("failed to decode snapshot", "height", snap.Height, "err", err)
+				return err
+			}
+			if err := idx.IndexBlockWithData(ctx, data); err != nil {
+				slog.Error("failed to index snapshot", "height", snap.Height, "err", err)
+				return err
+			}
+			return nil
+		})
+
+		g.Go(func() error {
+			slog.Info("starting snapshot websocket listener",
+				"chain_id", chainID,
+				"url", cfg.WSSnapshotURL,
+			)
+			return snapshotListener.Run(ctx)
+		})
+	} else if cfg.WSEnabled {
+		// Legacy WebSocket mode - only receives height, requires HTTP fetch
 		slog.Warn("WebSocket mode requires NODE_WS_URL environment variable to be set")
 	}
 

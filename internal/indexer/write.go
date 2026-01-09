@@ -15,8 +15,8 @@ func (idx *Indexer) writeAllData(ctx context.Context, data *BlockData) error {
 	start := time.Now()
 	slog.Debug("pg transaction: BEGIN", "height", data.Height, "chain_id", data.ChainID)
 
-	err := pgx.BeginFunc(ctx, idx.db, func(tx pgx.Tx) error {
-		batch := &pgx.Batch{}
+	err := idx.db.BeginFunc(ctx, func(tx pgx.Tx) error {
+		batch := idx.db.PrepareBatch(ctx)
 
 		// Order matters for foreign key constraints (if any)
 		// Block must be written first as other tables may reference it
@@ -41,7 +41,7 @@ func (idx *Indexer) writeAllData(ctx context.Context, data *BlockData) error {
 
 		slog.Debug("pg transaction: executing batch", "height", data.Height, "statements", batch.Len())
 
-		br := tx.SendBatch(ctx, batch)
+		br := idx.db.SendBatch(ctx, batch)
 		defer br.Close()
 
 		for i := 0; i < batch.Len(); i++ {

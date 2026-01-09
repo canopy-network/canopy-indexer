@@ -95,7 +95,7 @@ services:
       context: ../canopy-rpc-mock
       dockerfile: Dockerfile
     container_name: canopy-indexer-rpc-mock
-    command: ["-chains", "100", "-blocks", "1000", "-start-port", "60000", "-start-chain-id", "1000"]
+    command: ["-chains", "100", "-blocks", "100", "-start-port", "60000", "-start-chain-id", "1000"]
     ports:
       - "60000-60099:60000-60099"
     networks:

@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/canopy-network/canopyx/pkg/db/postgres"
 )
 
 // GapStats contains statistics about detected gaps.
@@ -18,7 +18,7 @@ type GapStats struct {
 
 // FindMissingHeights returns a slice of missing block heights between start and end.
 // Uses generate_series with anti-join for efficient gap detection.
-func FindMissingHeights(ctx context.Context, db *pgxpool.Pool, chainID, start, end uint64, limit int) ([]uint64, error) {
+func FindMissingHeights(ctx context.Context, db *postgres.Client, chainID, start, end uint64, limit int) ([]uint64, error) {
 	query := `
 		SELECT gs.height
 		FROM generate_series($1::bigint, $2::bigint) AS gs(height)
@@ -54,7 +54,7 @@ func FindMissingHeights(ctx context.Context, db *pgxpool.Pool, chainID, start, e
 }
 
 // GetGapStats returns statistics about gaps in the indexed blocks.
-func GetGapStats(ctx context.Context, db *pgxpool.Pool, chainID, start, end uint64) (*GapStats, error) {
+func GetGapStats(ctx context.Context, db *postgres.Client, chainID, start, end uint64) (*GapStats, error) {
 	query := `
 		WITH expected AS (
 			SELECT COUNT(*) as total FROM generate_series($1::bigint, $2::bigint)
@@ -103,7 +103,7 @@ func GetGapStats(ctx context.Context, db *pgxpool.Pool, chainID, start, end uint
 }
 
 // CountMissingBlocks returns the count of missing blocks without fetching them.
-func CountMissingBlocks(ctx context.Context, db *pgxpool.Pool, chainID, start, end uint64) (uint64, error) {
+func CountMissingBlocks(ctx context.Context, db *postgres.Client, chainID, start, end uint64) (uint64, error) {
 	query := `
 		SELECT COUNT(*)
 		FROM generate_series($1::bigint, $2::bigint) AS gs(height)

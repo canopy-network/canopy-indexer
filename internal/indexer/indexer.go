@@ -8,17 +8,17 @@ import (
 
 	"github.com/canopy-network/canopy-indexer/pkg/rpc"
 	"github.com/canopy-network/canopy/lib"
-	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/canopy-network/canopyx/pkg/db/postgres"
 )
 
 // Indexer handles the core indexing logic.
 type Indexer struct {
 	rpcClients map[uint64]*rpc.HTTPClient // chainID -> RPC client
-	db         *pgxpool.Pool
+	db         *postgres.Client
 }
 
 // New creates a new Indexer with a map of RPC clients keyed by chain ID.
-func New(rpcClients map[uint64]*rpc.HTTPClient, db *pgxpool.Pool) *Indexer {
+func New(rpcClients map[uint64]*rpc.HTTPClient, db *postgres.Client) *Indexer {
 	return &Indexer{
 		rpcClients: rpcClients,
 		db:         db,
@@ -104,14 +104,45 @@ func (idx *Indexer) IndexBlock(ctx context.Context, chainID, height uint64) erro
 	return nil
 }
 
+// IndexBlockWithData indexes a block using pre-fetched data (from WebSocket snapshot).
+// This bypasses the fetch phase entirely and goes directly to the write phase.
+func (idx *Indexer) IndexBlockWithData(ctx context.Context, data *BlockData) error {
+	start := time.Now()
+
+	if data == nil {
+		return fmt.Errorf("block data is nil")
+	}
+
+	// Phase 2: Write all data atomically (any DB failure → rollback)
+	if err := idx.writeAllData(ctx, data); err != nil {
+		return fmt.Errorf("write data: %w", err)
+	}
+
+	// Build block summary from indexed data
+	if err := idx.buildBlockSummary(ctx, data.ChainID, data.Height, data.BlockTime); err != nil {
+		return fmt.Errorf("build block summary: %w", err)
+	}
+
+	// Update index progress
+	if err := idx.updateProgress(ctx, data.ChainID, data.Height); err != nil {
+		return fmt.Errorf("update progress: %w", err)
+	}
+
+	slog.Debug("indexed block (from snapshot)",
+		"chain_id", data.ChainID,
+		"height", data.Height,
+		"duration", time.Since(start),
+	)
+
+	return nil
+}
+
 // updateProgress updates the indexing progress for a chain.
 func (idx *Indexer) updateProgress(ctx context.Context, chainID, height uint64) error {
-	_, err := idx.db.Exec(ctx, `SELECT update_index_progress($1, $2)`, chainID, height)
-	return err
+	return idx.db.Exec(ctx, `SELECT update_index_progress($1, $2)`, chainID, height)
 }
 
 // buildBlockSummary aggregates counts from all indexed tables into block_summaries.
 func (idx *Indexer) buildBlockSummary(ctx context.Context, chainID, height uint64, blockTime time.Time) error {
-	_, err := idx.db.Exec(ctx, `SELECT build_block_summary($1, $2, $3)`, chainID, height, blockTime)
-	return err
+	return idx.db.Exec(ctx, `SELECT build_block_summary($1, $2, $3)`, chainID, height, blockTime)
 }

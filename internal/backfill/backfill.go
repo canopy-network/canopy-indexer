@@ -10,7 +10,7 @@ import (
 
 	"github.com/canopy-network/canopy-indexer/internal/indexer"
 	"github.com/canopy-network/canopy-indexer/pkg/rpc"
-	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/canopy-network/canopyx/pkg/db/postgres"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -27,14 +27,14 @@ type Result struct {
 // Backfiller handles backfilling missing blocks.
 type Backfiller struct {
 	rpc     *rpc.HTTPClient
-	db      *pgxpool.Pool
+	db      *postgres.Client
 	indexer *indexer.Indexer
 	chainID uint64
 	config  *Config
 }
 
 // New creates a new Backfiller.
-func New(rpcClient *rpc.HTTPClient, db *pgxpool.Pool, idx *indexer.Indexer, chainID uint64, cfg *Config) *Backfiller {
+func New(rpcClient *rpc.HTTPClient, db *postgres.Client, idx *indexer.Indexer, chainID uint64, cfg *Config) *Backfiller {
 	if cfg == nil {
 		cfg = DefaultConfig()
 	}

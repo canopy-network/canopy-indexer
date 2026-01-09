@@ -33,10 +33,15 @@ type Config struct {
 	// Worker
 	WorkerConcurrency int
 
-	// WebSocket
+	// WebSocket (height notification mode)
 	WSEnabled        bool
 	WSMaxRetries     int
 	WSReconnectDelay time.Duration
+
+	// WebSocket Snapshot Mode (receives full IndexerSnapshot instead of just height)
+	WSSnapshotEnabled bool
+	WSSnapshotURL     string
+	WSSnapshotChainID uint64
 
 	// Logging
 	LogLevel string
@@ -61,9 +66,6 @@ func MockChains() []ChainConfig {
 // Load loads configuration from environment variables.
 func Load() (*Config, error) {
 	cfg := &Config{
-		// Hardcoded mock chains
-		Chains: MockChains(),
-
 		// Defaults
 		RPCRPS:            500,
 		RPCBurst:          1000,
@@ -130,6 +132,19 @@ func Load() (*Config, error) {
 		}
 	}
 
+	// WebSocket Snapshot Mode
+	if v := os.Getenv("WS_SNAPSHOT_ENABLED"); v != "" {
+		cfg.WSSnapshotEnabled = v == "true" || v == "1"
+	}
+
+	cfg.WSSnapshotURL = os.Getenv("WS_SNAPSHOT_URL")
+
+	if v := os.Getenv("WS_SNAPSHOT_CHAIN_ID"); v != "" {
+		if n, err := strconv.ParseUint(v, 10, 64); err == nil {
+			cfg.WSSnapshotChainID = n
+		}
+	}
+
 	if v := os.Getenv("LOG_LEVEL"); v != "" {
 		cfg.LogLevel = v
 	}
@@ -138,6 +153,19 @@ func Load() (*Config, error) {
 		if d, err := time.ParseDuration(v); err == nil {
 			cfg.BackfillCheckInterval = d
 		}
+	}
+
+	// Mock chains (disabled by default)
+	if v := os.Getenv("MOCK_CHAINS_ENABLED"); v == "true" || v == "1" {
+		cfg.Chains = MockChains()
+	}
+
+	// Default Canopy node for snapshot mode (can be overridden by WS_SNAPSHOT_URL)
+	if cfg.WSSnapshotURL == "" && cfg.WSSnapshotEnabled {
+		cfg.WSSnapshotURL = "http://host.docker.internal:50002"
+	}
+	if cfg.WSSnapshotChainID == 0 && cfg.WSSnapshotEnabled {
+		cfg.WSSnapshotChainID = 1 // Default chain ID
 	}
 
 	return cfg, nil

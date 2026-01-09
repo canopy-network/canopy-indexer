@@ -12,9 +12,10 @@ import (
 
 	"github.com/canopy-network/canopy-indexer/internal/backfill"
 	"github.com/canopy-network/canopy-indexer/internal/config"
-	"github.com/canopy-network/canopy-indexer/internal/db"
 	"github.com/canopy-network/canopy-indexer/internal/indexer"
 	"github.com/canopy-network/canopy-indexer/pkg/rpc"
+	"github.com/canopy-network/canopyx/pkg/db/postgres"
+	"go.uber.org/zap"
 )
 
 func main() {
@@ -65,13 +66,22 @@ func main() {
 		"chains", len(chainsToBackfill),
 	)
 
-	// Connect to PostgreSQL
-	pool, err := db.Connect(ctx, cfg.PostgresURL)
+	// Connect to PostgreSQL using postgres package
+	logger, err := zap.NewProduction()
+	if err != nil {
+		slog.Error("failed to create logger", "err", err)
+		os.Exit(1)
+	}
+	defer logger.Sync()
+
+	// Use default pool config for backfill
+	poolConfig := postgres.GetPoolConfigForComponent("indexer_chain")
+	client, err := postgres.New(ctx, logger, "backfill", poolConfig)
 	if err != nil {
 		slog.Error("failed to connect to postgres", "err", err)
 		os.Exit(1)
 	}
-	defer pool.Close()
+	defer client.Close()
 
 	// Create RPC clients for all chains
 	rpcClients := make(map[uint64]*rpc.HTTPClient)
@@ -84,7 +94,7 @@ func main() {
 	}
 
 	// Create indexer
-	idx := indexer.New(rpcClients, pool)
+	idx := indexer.New(rpcClients, &client)
 
 	// Build backfill config
 	backfillCfg := backfill.LoadConfig()
@@ -110,7 +120,7 @@ func main() {
 	if *statsOnly {
 		for _, chain := range chainsToBackfill {
 			rpcClient := rpcClients[chain.ChainID]
-			bf := backfill.New(rpcClient, pool, idx, chain.ChainID, backfillCfg)
+			bf := backfill.New(rpcClient, &client, idx, chain.ChainID, backfillCfg)
 			stats, err := bf.CheckHealth(ctx)
 			if err != nil {
 				slog.Error("failed to check health", "chain_id", chain.ChainID, "err", err)
@@ -145,7 +155,7 @@ func main() {
 			defer wg.Done()
 
 			rpcClient := rpcClients[chain.ChainID]
-			bf := backfill.New(rpcClient, pool, idx, chain.ChainID, backfillCfg)
+			bf := backfill.New(rpcClient, &client, idx, chain.ChainID, backfillCfg)
 
 			result, err := bf.Run(ctx)
 			if err != nil && ctx.Err() == nil {

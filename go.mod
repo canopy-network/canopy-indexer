@@ -5,11 +5,13 @@ go 1.24.0
 require (
 	github.com/ThreeDotsLabs/watermill v1.4.4
 	github.com/ThreeDotsLabs/watermill-redisstream v1.4.2
-	github.com/canopy-network/canopy v0.0.0
-	github.com/gorilla/websocket v1.5.3
-	github.com/jackc/pgx/v5 v5.7.2
-	github.com/redis/go-redis/v9 v9.7.0
-	golang.org/x/sync v0.17.0
+	github.com/canopy-network/canopy v0.1.15-0.20251225182851-bcc795889f23
+	github.com/canopy-network/canopyx v0.0.0
+	github.com/gorilla/websocket v1.5.4-0.20250319132907-e064f32e3674
+	github.com/jackc/pgx/v5 v5.8.0
+	github.com/redis/go-redis/v9 v9.14.0
+	go.uber.org/zap v1.27.0
+	golang.org/x/sync v0.18.0
 )
 
 require (
@@ -71,11 +73,13 @@ require (
 	github.com/rogpeppe/go-internal v1.14.1 // indirect
 	github.com/supranational/blst v0.3.14 // indirect
 	github.com/vmihailenco/msgpack v4.0.4+incompatible // indirect
+	go.uber.org/multierr v1.11.0 // indirect
 	go.yaml.in/yaml/v2 v2.4.3 // indirect
-	golang.org/x/crypto v0.42.0 // indirect
+	golang.org/x/crypto v0.45.0 // indirect
 	golang.org/x/exp v0.0.0-20251023183803-a4bb9ffd2546 // indirect
-	golang.org/x/sys v0.37.0 // indirect
-	golang.org/x/text v0.30.0 // indirect
+	golang.org/x/net v0.47.0 // indirect
+	golang.org/x/sys v0.38.0 // indirect
+	golang.org/x/text v0.31.0 // indirect
 	google.golang.org/appengine v1.6.8 // indirect
 	google.golang.org/protobuf v1.36.10 // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1 // indirect
@@ -83,3 +87,5 @@ require (
 )
 
 replace github.com/canopy-network/canopy => ../canopy/main
+
+replace github.com/canopy-network/canopyx => ../canopyx
