@@ -67,62 +67,60 @@ Requires correlation of:
 ## Implementation Phases
 
 ### Phase 1: Create Conversion Functions with Change Detection ✅ COMPLETED
-**Location:** `internal/indexer/conversions.go`
+**Location:** `internal/indexer/conversions.go` (768 lines)
 
-Created functions that implement change detection logic:
+Implemented change detection conversion functions that output canopyx `indexermodels` types:
+
+#### Change Detection Conversions (Implemented)
+
+| Function | Description | Lines |
+|----------|-------------|-------|
+| `ConvertValidatorsWithChangeDetection()` | Compares 9 fields at H vs H-1, returns changed validators + committee assignments | 18-101 |
+| `ConvertNonSignersWithChangeDetection()` | Two-phase: counter changes + reset detection (H-1 present, H absent → reset to 0) | 117-175 |
+| `ConvertDoubleSignersWithChangeDetection()` | Two-phase: evidence count changes + clear detection | 181-239 |
+| `ConvertPoolPointsWithChangeDetection()` | Snapshots when points or TotalPoolPoints change | 245-295 |
+| `ConvertDexOrdersWithStateMachine()` | FUTURE → LOCKED → COMPLETE with event correlation | 318-404 |
+| `ConvertDexDepositsWithStateMachine()` | PENDING → LOCKED → COMPLETE with event correlation | 407-473 |
+| `ConvertDexWithdrawalsWithStateMachine()` | PENDING → LOCKED → COMPLETE with event correlation | 476-545 |
+
+#### Helper Functions (Implemented)
+
+| Function | Description |
+|----------|-------------|
+| `equalCommittees()` | Order-independent committee slice comparison |
+| `parseDexEventsFromSlice()` | Extracts DEX events for completion correlation |
+| `parseDexEvent()` | Parses event JSON into dexEvent struct |
+| `buildH1Maps()` | Builds H-1 lookup maps for DEX change detection |
+| `poolHolderKey()` | Creates unique key for pool holder lookups |
+
+#### Types Defined
 
 ```go
-import (
-    "github.com/canopy-network/canopy-indexer/pkg/transform"
-    indexermodels "github.com/canopy-network/canopyx/pkg/db/models/indexer"
-)
+// dexEvent holds parsed event data for DEX completion correlation
+type dexEvent struct {
+    OrderID, EventType string
+    SoldAmount, BoughtAmount, PointsReceived, LocalAmount, RemoteAmount, PointsBurned uint64
+    LocalOrigin, Success bool
+}
 
-// Simple conversions (no change detection needed)
-func convertBlock(block *lib.BlockResult, chainID uint64, blockTime time.Time) *indexermodels.Block
-func convertTransactions(txs []*lib.TxResult, chainID uint64, height uint64, blockTime time.Time) []*indexermodels.Transaction
-func convertEvents(events []*lib.Event, chainID uint64, height uint64, blockTime time.Time) []*indexermodels.Event
-func convertAccounts(accounts []*fsm.Account, height uint64, blockTime time.Time) []*indexermodels.Account
-func convertPools(pools []*fsm.Pool, height uint64, blockTime time.Time) []*indexermodels.Pool
-func convertOrders(orders []*lib.SellOrder, height uint64, blockTime time.Time) []*indexermodels.Order
-func convertDexPrices(prices []*lib.DexPrice, height uint64, blockTime time.Time) []*indexermodels.DexPrice
-func convertParams(params *fsm.Params, height uint64, blockTime time.Time) *indexermodels.Params
-func convertSupply(supply *fsm.Supply, height uint64, blockTime time.Time) *indexermodels.Supply
-func convertCommittees(committees []*lib.CommitteeData, height uint64, blockTime time.Time) []*indexermodels.Committee
-
-// Change detection conversions - return only changed records
-func convertValidatorsWithChangeDetection(
-    current, previous []*fsm.Validator,
-    height uint64, blockTime time.Time,
-) ([]*indexermodels.Validator, []*indexermodels.CommitteeValidator)
-
-func convertNonSignersWithChangeDetection(
-    current, previous []*fsm.NonSigner,
-    height uint64, blockTime time.Time,
-) []*indexermodels.ValidatorNonSigningInfo
-
-func convertDoubleSignersWithChangeDetection(
-    current, previous []*lib.DoubleSigner,
-    height uint64, blockTime time.Time,
-) []*indexermodels.ValidatorDoubleSigningInfo
-
-func convertPoolPointsWithChangeDetection(
-    currentPools, previousPools []*fsm.Pool,
-    height uint64, blockTime time.Time,
-) []*indexermodels.PoolPointsByHolder
-
-// DEX state machine conversions
-func convertDexOrdersWithStateMachine(
-    data *BlockData, events []*lib.Event,
-) []*indexermodels.DexOrder
-
-func convertDexDepositsWithStateMachine(
-    data *BlockData, events []*lib.Event,
-) []*indexermodels.DexDeposit
-
-func convertDexWithdrawalsWithStateMachine(
-    data *BlockData, events []*lib.Event,
-) []*indexermodels.DexWithdrawal
+// h1Maps holds H-1 data for DEX change detection
+type h1Maps struct {
+    OrdersLocked, OrdersPending map[string]*lib.DexLimitOrder
+    DepositsLocked, DepositsPending map[string]*lib.DexLiquidityDeposit
+    WithdrawalsLocked, WithdrawalsPending map[string]*lib.DexLiquidityWithdraw
+}
 ```
+
+#### Files Modified
+- `internal/indexer/validators.go` - Removed `equalCommittees()` (now in conversions.go)
+- `internal/indexer/pools.go` - Removed `poolHolderKey()` (now in conversions.go)
+- `internal/indexer/dex.go` - Removed `dexEvent` and `h1Maps` types (now in conversions.go)
+
+#### Simple Conversions (TODO - Phase 1b)
+These still need to be implemented to convert BlockData fields to canopyx models:
+- `convertBlock()`, `convertTransactions()`, `convertEvents()`, `convertAccounts()`
+- `convertPools()`, `convertOrders()`, `convertDexPrices()`
+- `convertParams()`, `convertSupply()`, `convertCommittees()`
 
 ### Phase 2: Update IndexBlock() Method
 **File:** `internal/indexer/indexer.go`
