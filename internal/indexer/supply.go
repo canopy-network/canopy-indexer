@@ -1,10 +1,11 @@
 package indexer
 
 import (
+	"github.com/canopy-network/canopy-indexer/pkg/blob"
 	"github.com/jackc/pgx/v5"
 )
 
-func (idx *Indexer) writeSupply(batch *pgx.Batch, data *BlockData) {
+func (idx *Indexer) writeSupply(batch *pgx.Batch, data *blob.BlockData) {
 	if data.Supply == nil {
 		return
 	}

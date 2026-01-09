@@ -3,11 +3,12 @@ package indexer
 import (
 	"encoding/json"
 
+	"github.com/canopy-network/canopy-indexer/pkg/blob"
 	"github.com/canopy-network/canopy-indexer/pkg/transform"
 	"github.com/jackc/pgx/v5"
 )
 
-func (idx *Indexer) writeTransactions(batch *pgx.Batch, data *BlockData) {
+func (idx *Indexer) writeTransactions(batch *pgx.Batch, data *blob.BlockData) {
 	for i, tx := range data.Transactions {
 		msgJSON, _ := json.Marshal(tx)
 

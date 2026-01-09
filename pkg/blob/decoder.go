@@ -4,14 +4,13 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/canopy-network/canopy-indexer/internal/indexer"
 	"github.com/canopy-network/canopy/fsm"
 	"github.com/canopy-network/canopy/lib"
 )
 
-// Decode converts fsm.IndexerBlobs to an indexer.BlockData struct.
+// Decode converts fsm.IndexerBlobs to a BlockData struct.
 // The blobs contain both current and previous height data for change detection.
-func Decode(blobs *fsm.IndexerBlobs, chainID uint64) (*indexer.BlockData, error) {
+func Decode(blobs *fsm.IndexerBlobs, chainID uint64) (*BlockData, error) {
 	if blobs == nil || blobs.Current == nil {
 		return nil, fmt.Errorf("blobs or current blob is nil")
 	}
@@ -208,13 +207,13 @@ func decodeBlob(blob *fsm.IndexerBlob) (*decodedBlob, error) {
 	return out, nil
 }
 
-// buildBlockData maps decoded current and previous blobs to indexer.BlockData.
-func buildBlockData(chainID uint64, current, previous *decodedBlob) (*indexer.BlockData, error) {
+// buildBlockData maps decoded current and previous blobs to BlockData.
+func buildBlockData(chainID uint64, current, previous *decodedBlob) (*BlockData, error) {
 	if current == nil || current.block == nil {
 		return nil, fmt.Errorf("current blob has no block data")
 	}
 
-	data := &indexer.BlockData{
+	data := &BlockData{
 		ChainID: chainID,
 		Height:  current.block.BlockHeader.Height,
 	}

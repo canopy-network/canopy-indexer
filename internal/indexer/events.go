@@ -3,10 +3,11 @@ package indexer
 import (
 	"encoding/json"
 
+	"github.com/canopy-network/canopy-indexer/pkg/blob"
 	"github.com/jackc/pgx/v5"
 )
 
-func (idx *Indexer) writeEvents(batch *pgx.Batch, data *BlockData) {
+func (idx *Indexer) writeEvents(batch *pgx.Batch, data *blob.BlockData) {
 	for _, event := range data.Events {
 		msgJSON, _ := json.Marshal(event)
 

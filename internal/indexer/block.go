@@ -1,11 +1,12 @@
 package indexer
 
 import (
+	"github.com/canopy-network/canopy-indexer/pkg/blob"
 	"github.com/canopy-network/canopy-indexer/pkg/transform"
 	"github.com/jackc/pgx/v5"
 )
 
-func (idx *Indexer) writeBlock(batch *pgx.Batch, data *BlockData) {
+func (idx *Indexer) writeBlock(batch *pgx.Batch, data *blob.BlockData) {
 	b := transform.BlockFromResult(data.Block)
 
 	batch.Queue(`

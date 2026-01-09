@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/canopy-network/canopy-indexer/pkg/blob"
 	"github.com/canopy-network/canopy-indexer/pkg/rpc"
 	"github.com/canopy-network/canopy/fsm"
 	"github.com/canopy-network/canopy/lib"
@@ -13,8 +14,8 @@ import (
 // fetchAllData fetches all data needed for indexing in parallel.
 // Any RPC failure causes immediate return with error (NACK semantics).
 // On retry, cached RPC calls return immediately from the 10-block rolling cache.
-func (idx *Indexer) fetchAllData(ctx context.Context, rpc *rpc.HTTPClient, chainID, height uint64, block *lib.BlockResult, blockTime time.Time) (*BlockData, error) {
-	data := &BlockData{
+func (idx *Indexer) fetchAllData(ctx context.Context, rpc *rpc.HTTPClient, chainID, height uint64, block *lib.BlockResult, blockTime time.Time) (*blob.BlockData, error) {
+	data := &blob.BlockData{
 		ChainID:   chainID,
 		Height:    height,
 		BlockTime: blockTime,

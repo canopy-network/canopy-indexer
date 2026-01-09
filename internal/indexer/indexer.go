@@ -6,8 +6,8 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/canopy-network/canopy-indexer/pkg/blob"
 	"github.com/canopy-network/canopy-indexer/pkg/rpc"
-	"github.com/canopy-network/canopy/lib"
 	"github.com/canopy-network/canopyx/pkg/db/postgres"
 )
 
@@ -34,79 +34,36 @@ func (idx *Indexer) rpcForChain(chainID uint64) (*rpc.HTTPClient, error) {
 	return client, nil
 }
 
-// IndexBlock indexes a single block at the given height using two-phase architecture:
-// Phase 1 (Fetch): All RPC calls in parallel - any failure returns error (NACK)
-// Phase 2 (Write): All DB writes in single transaction - any failure rolls back (NACK)
+// IndexBlock indexes a single block at the given height using blob-based fetching.
 func (idx *Indexer) IndexBlock(ctx context.Context, chainID, height uint64) error {
-	start := time.Now()
-
-	// Get RPC client for this chain
 	rpcClient, err := idx.rpcForChain(chainID)
 	if err != nil {
 		return err
 	}
 
-	// 1. Fetch block from RPC with retry (block may not be ready immediately after WS notification)
-	var block *lib.BlockResult
-	for attempt := 0; attempt < 10; attempt++ {
-		block, err = rpcClient.BlockByHeight(ctx, height)
-		if err == nil {
-			break
-		}
-		// Wait before retry - block might not be committed yet (exponential backoff, max 5s)
-		delay := time.Duration(1<<attempt) * 500 * time.Millisecond
-		if delay > 5*time.Second {
-			delay = 5 * time.Second
-		}
-		slog.Debug("block not ready, retrying", "height", height, "attempt", attempt+1, "delay", delay, "err", err)
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-time.After(delay):
-		}
-	}
+	// Fetch blob (single HTTP call)
+	blobs, err := rpcClient.Blob(ctx, height)
 	if err != nil {
-		return fmt.Errorf("fetch block: %w", err)
+		slog.Error("failed to fetch indexer blob",
+			"chain_id", chainID,
+			"height", height,
+			"err", err,
+		)
+		return fmt.Errorf("fetch blob: %w", err)
 	}
-	if block == nil || block.BlockHeader == nil {
-		return fmt.Errorf("block or block header is nil for height %d", height)
-	}
-	blockTime := time.UnixMicro(int64(block.BlockHeader.Time))
 
-	// 2. Phase 1: Fetch all data in parallel (any RPC failure → return error → NACK)
-	// On retry, cached RPC calls return immediately from the 10-block rolling cache
-	data, err := idx.fetchAllData(ctx, rpcClient, chainID, height, block, blockTime)
+	// Decode blob to BlockData
+	data, err := blob.Decode(blobs, chainID)
 	if err != nil {
-		return fmt.Errorf("fetch data: %w", err)
+		return fmt.Errorf("decode blob: %w", err)
 	}
 
-	// 3. Phase 2: Write all data atomically (any DB failure → rollback → NACK)
-	if err := idx.writeAllData(ctx, data); err != nil {
-		return fmt.Errorf("write data: %w", err)
-	}
-
-	// 4. Build block summary from indexed data
-	if err := idx.buildBlockSummary(ctx, chainID, height, blockTime); err != nil {
-		return fmt.Errorf("build block summary: %w", err)
-	}
-
-	// 5. Update index progress
-	if err := idx.updateProgress(ctx, chainID, height); err != nil {
-		return fmt.Errorf("update progress: %w", err)
-	}
-
-	slog.Debug("indexed block",
-		"chain_id", chainID,
-		"height", height,
-		"duration", time.Since(start),
-	)
-
-	return nil
+	return idx.IndexBlockWithData(ctx, data)
 }
 
 // IndexBlockWithData indexes a block using pre-fetched data (from WebSocket blob).
 // This bypasses the fetch phase entirely and goes directly to the write phase.
-func (idx *Indexer) IndexBlockWithData(ctx context.Context, data *BlockData) error {
+func (idx *Indexer) IndexBlockWithData(ctx context.Context, data *blob.BlockData) error {
 	start := time.Now()
 
 	if data == nil {

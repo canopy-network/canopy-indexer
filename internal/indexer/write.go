@@ -6,12 +6,13 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/canopy-network/canopy-indexer/pkg/blob"
 	"github.com/jackc/pgx/v5"
 )
 
 // writeAllData writes all indexed data in a single atomic transaction.
 // Any write failure causes transaction rollback and returns error (NACK).
-func (idx *Indexer) writeAllData(ctx context.Context, data *BlockData) error {
+func (idx *Indexer) writeAllData(ctx context.Context, data *blob.BlockData) error {
 	start := time.Now()
 	slog.Debug("pg transaction: BEGIN", "height", data.Height, "chain_id", data.ChainID)
 

@@ -1,4 +1,4 @@
-package indexer
+package blob
 
 import (
 	"time"
@@ -7,9 +7,7 @@ import (
 	"github.com/canopy-network/canopy/lib"
 )
 
-// BlockData holds all RPC-fetched data for a single block height.
-// Phase 1 (fetchAllData) populates this struct.
-// Phase 2 (writeAllData) consumes it for DB writes.
+// BlockData represents all data for a block, populated during fetch phase and consumed during write phase.
 type BlockData struct {
 	// Core identifiers
 	ChainID   uint64

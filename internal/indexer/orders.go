@@ -1,11 +1,12 @@
 package indexer
 
 import (
+	"github.com/canopy-network/canopy-indexer/pkg/blob"
 	"github.com/canopy-network/canopy-indexer/pkg/transform"
 	"github.com/jackc/pgx/v5"
 )
 
-func (idx *Indexer) writeOrders(batch *pgx.Batch, data *BlockData) {
+func (idx *Indexer) writeOrders(batch *pgx.Batch, data *blob.BlockData) {
 	for _, order := range data.Orders {
 		o := transform.OrderFromLib(order)
 		batch.Queue(`

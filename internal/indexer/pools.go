@@ -1,11 +1,12 @@
 package indexer
 
 import (
+	"github.com/canopy-network/canopy-indexer/pkg/blob"
 	"github.com/canopy-network/canopy-indexer/pkg/transform"
 	"github.com/jackc/pgx/v5"
 )
 
-func (idx *Indexer) writePools(batch *pgx.Batch, data *BlockData) {
+func (idx *Indexer) writePools(batch *pgx.Batch, data *blob.BlockData) {
 	if len(data.PoolsCurrent) == 0 {
 		return
 	}

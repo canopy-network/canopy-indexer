@@ -122,7 +122,7 @@ These still need to be implemented to convert BlockData fields to canopyx models
 - `convertPools()`, `convertOrders()`, `convertDexPrices()`
 - `convertParams()`, `convertSupply()`, `convertCommittees()`
 
-### Phase 2: Update IndexBlock() Method
+### Phase 2: Update IndexBlock() Method ✅ COMPLETED
 **File:** `internal/indexer/indexer.go`
 
 Replace the current implementation with blob-based fetching:

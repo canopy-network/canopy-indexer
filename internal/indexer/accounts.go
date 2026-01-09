@@ -1,11 +1,12 @@
 package indexer
 
 import (
+	"github.com/canopy-network/canopy-indexer/pkg/blob"
 	"github.com/canopy-network/canopy-indexer/pkg/transform"
 	"github.com/jackc/pgx/v5"
 )
 
-func (idx *Indexer) writeAccounts(batch *pgx.Batch, data *BlockData) {
+func (idx *Indexer) writeAccounts(batch *pgx.Batch, data *blob.BlockData) {
 	for _, acc := range data.Accounts {
 		batch.Queue(`
 			INSERT INTO accounts (chain_id, address, amount, rewards, slashes, height, height_time)

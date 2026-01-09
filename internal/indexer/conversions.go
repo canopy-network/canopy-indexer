@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/canopy-network/canopy-indexer/pkg/blob"
 	"github.com/canopy-network/canopy-indexer/pkg/transform"
 	"github.com/canopy-network/canopy/fsm"
 	"github.com/canopy-network/canopy/lib"
@@ -345,7 +346,7 @@ type h1Maps struct {
 
 // ConvertDexOrdersWithStateMachine converts DEX orders using the state machine pattern.
 // States: FUTURE -> LOCKED -> COMPLETE
-func ConvertDexOrdersWithStateMachine(data *BlockData) []*indexermodels.DexOrder {
+func ConvertDexOrdersWithStateMachine(data *blob.BlockData) []*indexermodels.DexOrder {
 	// Parse DEX events for completion detection
 	swapEvents, _, _ := parseDexEventsFromSlice(data.Events)
 
@@ -455,7 +456,7 @@ func ConvertDexOrdersWithStateMachine(data *BlockData) []*indexermodels.DexOrder
 
 // ConvertDexDepositsWithStateMachine converts DEX deposits using the state machine pattern.
 // States: PENDING -> LOCKED -> COMPLETE
-func ConvertDexDepositsWithStateMachine(data *BlockData) []*indexermodels.DexDeposit {
+func ConvertDexDepositsWithStateMachine(data *blob.BlockData) []*indexermodels.DexDeposit {
 	// Parse DEX events for completion detection
 	_, depositEvents, _ := parseDexEventsFromSlice(data.Events)
 
@@ -547,7 +548,7 @@ func ConvertDexDepositsWithStateMachine(data *BlockData) []*indexermodels.DexDep
 
 // ConvertDexWithdrawalsWithStateMachine converts DEX withdrawals using the state machine pattern.
 // States: PENDING -> LOCKED -> COMPLETE
-func ConvertDexWithdrawalsWithStateMachine(data *BlockData) []*indexermodels.DexWithdrawal {
+func ConvertDexWithdrawalsWithStateMachine(data *blob.BlockData) []*indexermodels.DexWithdrawal {
 	// Parse DEX events for completion detection
 	_, _, withdrawalEvents := parseDexEventsFromSlice(data.Events)
 

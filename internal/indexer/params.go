@@ -1,11 +1,12 @@
 package indexer
 
 import (
+	"github.com/canopy-network/canopy-indexer/pkg/blob"
 	"github.com/canopy-network/canopy-indexer/pkg/transform"
 	"github.com/jackc/pgx/v5"
 )
 
-func (idx *Indexer) writeParams(batch *pgx.Batch, data *BlockData) {
+func (idx *Indexer) writeParams(batch *pgx.Batch, data *blob.BlockData) {
 	p := transform.ParamsFromFSM(data.Params)
 	if p == nil {
 		return

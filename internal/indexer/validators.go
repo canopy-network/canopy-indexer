@@ -1,13 +1,14 @@
 package indexer
 
 import (
+	"github.com/canopy-network/canopy-indexer/pkg/blob"
 	"github.com/canopy-network/canopy-indexer/pkg/transform"
 	"github.com/canopy-network/canopy/fsm"
 	"github.com/canopy-network/canopy/lib"
 	"github.com/jackc/pgx/v5"
 )
 
-func (idx *Indexer) writeValidators(batch *pgx.Batch, data *BlockData) {
+func (idx *Indexer) writeValidators(batch *pgx.Batch, data *blob.BlockData) {
 	// Build previous validator map for O(1) lookup
 	prevValidatorMap := make(map[string]*fsm.Validator, len(data.ValidatorsPrevious))
 	for _, val := range data.ValidatorsPrevious {
@@ -125,7 +126,7 @@ func (idx *Indexer) writeValidators(batch *pgx.Batch, data *BlockData) {
 	idx.writeDoubleSigners(batch, data)
 }
 
-func (idx *Indexer) writeNonSigners(batch *pgx.Batch, data *BlockData) {
+func (idx *Indexer) writeNonSigners(batch *pgx.Batch, data *blob.BlockData) {
 	// Build previous non-signer map for O(1) lookup
 	prevNonSignerMap := make(map[string]*fsm.NonSigner, len(data.NonSignersPrevious))
 	for _, ns := range data.NonSignersPrevious {
@@ -197,7 +198,7 @@ func (idx *Indexer) writeNonSigners(batch *pgx.Batch, data *BlockData) {
 	}
 }
 
-func (idx *Indexer) writeDoubleSigners(batch *pgx.Batch, data *BlockData) {
+func (idx *Indexer) writeDoubleSigners(batch *pgx.Batch, data *blob.BlockData) {
 	// Build previous double-signer map for O(1) lookup (stores evidence count)
 	prevDoubleSignerMap := make(map[string]uint64, len(data.DoubleSignersPrevious))
 	for _, ds := range data.DoubleSignersPrevious {

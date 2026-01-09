@@ -3,6 +3,7 @@ package indexer
 import (
 	"encoding/json"
 
+	"github.com/canopy-network/canopy-indexer/pkg/blob"
 	"github.com/canopy-network/canopy-indexer/pkg/transform"
 	"github.com/canopy-network/canopy/lib"
 	"github.com/jackc/pgx/v5"
@@ -16,7 +17,7 @@ const (
 	DexStateComplete = "complete"
 )
 
-func (idx *Indexer) writeDexPrices(batch *pgx.Batch, data *BlockData) {
+func (idx *Indexer) writeDexPrices(batch *pgx.Batch, data *blob.BlockData) {
 	for _, price := range data.DexPrices {
 		p := transform.DexPriceFromLib(price)
 		batch.Queue(`
@@ -43,7 +44,7 @@ func (idx *Indexer) writeDexPrices(batch *pgx.Batch, data *BlockData) {
 
 // dexEvent and h1Maps types are now defined in conversions.go
 
-func (idx *Indexer) writeDexBatch(batch *pgx.Batch, data *BlockData) {
+func (idx *Indexer) writeDexBatch(batch *pgx.Batch, data *blob.BlockData) {
 	// Parse DEX events from in-memory Events slice (replaces queryDexEvents DB call)
 	swapEvents, depositEvents, withdrawalEvents := idx.parseDexEventsFromSlice(data.Events)
 
@@ -180,7 +181,7 @@ func (idx *Indexer) buildH1Maps(currentBatchesH1, nextBatchesH1 []*lib.DexBatch)
 	return h1
 }
 
-func (idx *Indexer) writeDexOrders(batch *pgx.Batch, data *BlockData, h1 *h1Maps, swapEvents map[string]*dexEvent) {
+func (idx *Indexer) writeDexOrders(batch *pgx.Batch, data *blob.BlockData, h1 *h1Maps, swapEvents map[string]*dexEvent) {
 	// 1. Process COMPLETE orders: items from H-1 batch that have completion events at H
 	for _, b := range data.DexBatchesPreviousCurr {
 		for _, order := range b.Orders {
@@ -297,7 +298,7 @@ func (idx *Indexer) writeDexOrders(batch *pgx.Batch, data *BlockData, h1 *h1Maps
 	}
 }
 
-func (idx *Indexer) writeDexDeposits(batch *pgx.Batch, data *BlockData, h1 *h1Maps, depositEvents map[string]*dexEvent) {
+func (idx *Indexer) writeDexDeposits(batch *pgx.Batch, data *blob.BlockData, h1 *h1Maps, depositEvents map[string]*dexEvent) {
 	// 1. Process COMPLETE deposits: items from H-1 batch that have completion events at H
 	for _, b := range data.DexBatchesPreviousCurr {
 		for _, dep := range b.Deposits {
@@ -399,7 +400,7 @@ func (idx *Indexer) writeDexDeposits(batch *pgx.Batch, data *BlockData, h1 *h1Ma
 	}
 }
 
-func (idx *Indexer) writeDexWithdrawals(batch *pgx.Batch, data *BlockData, h1 *h1Maps, withdrawalEvents map[string]*dexEvent) {
+func (idx *Indexer) writeDexWithdrawals(batch *pgx.Batch, data *blob.BlockData, h1 *h1Maps, withdrawalEvents map[string]*dexEvent) {
 	// 1. Process COMPLETE withdrawals: items from H-1 batch that have completion events at H
 	for _, b := range data.DexBatchesPreviousCurr {
 		for _, w := range b.Withdrawals {
