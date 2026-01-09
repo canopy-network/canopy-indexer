@@ -10,6 +10,7 @@ import (
 
 	"github.com/canopy-network/canopy-indexer/internal/indexer"
 	"github.com/canopy-network/canopy-indexer/pkg/rpc"
+	"github.com/canopy-network/canopy-indexer/pkg/snapshot"
 	"github.com/canopy-network/canopyx/pkg/db/postgres"
 	"golang.org/x/sync/errgroup"
 )
@@ -152,7 +153,14 @@ func (b *Backfiller) Run(ctx context.Context) (*Result, error) {
 			g.Go(func() error {
 				processed.Add(1)
 
-				if err := b.indexer.IndexBlock(gCtx, b.chainID, height); err != nil {
+				var err error
+				if b.config.UseBlobs {
+					err = b.indexBlockWithBlob(gCtx, height)
+				} else {
+					err = b.indexer.IndexBlock(gCtx, b.chainID, height)
+				}
+
+				if err != nil {
 					failed.Add(1)
 					errorsMu.Lock()
 					result.Errors = append(result.Errors, fmt.Errorf("height %d: %w", height, err))
@@ -160,6 +168,7 @@ func (b *Backfiller) Run(ctx context.Context) (*Result, error) {
 					slog.Error("failed to index block",
 						"chain_id", b.chainID,
 						"height", height,
+						"use_blobs", b.config.UseBlobs,
 						"err", err,
 					)
 					// Continue with other blocks, don't fail entire backfill
@@ -236,6 +245,21 @@ func (b *Backfiller) reportProgress(ctx context.Context, total uint64, processed
 			)
 		}
 	}
+}
+
+// indexBlockWithBlob fetches a blob and indexes the block from it.
+func (b *Backfiller) indexBlockWithBlob(ctx context.Context, height uint64) error {
+	blobs, err := b.rpc.Blob(ctx, height)
+	if err != nil {
+		return fmt.Errorf("fetch blob: %w", err)
+	}
+
+	data, err := snapshot.Decode(blobs, b.chainID)
+	if err != nil {
+		return fmt.Errorf("decode blob: %w", err)
+	}
+
+	return b.indexer.IndexBlockWithData(ctx, data)
 }
 
 // CheckHealth performs a quick gap check and returns stats.

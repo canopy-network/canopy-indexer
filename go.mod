@@ -86,6 +86,6 @@ require (
 	rsc.io/tmplfunc v0.0.3 // indirect
 )
 
-replace github.com/canopy-network/canopy => ../canopy/main
+replace github.com/canopy-network/canopy => ../canopy/blob
 
 replace github.com/canopy-network/canopyx => ../canopyx

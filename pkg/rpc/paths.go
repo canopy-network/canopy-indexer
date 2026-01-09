@@ -42,6 +42,7 @@ const (
 
 	// Committee queries
 	committeesDataPath       = "/v1/query/committees-data"
+	indexerBlobsPath         = "/v1/query/indexer-blobs"
 	subsidizedCommitteesPath = "/v1/query/subsidized-committees"
 	retiredCommitteesPath    = "/v1/query/retired-committees"
 

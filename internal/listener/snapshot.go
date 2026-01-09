@@ -2,7 +2,6 @@ package listener
 
 import (
 	"context"
-	"encoding/hex"
 	"fmt"
 	"log/slog"
 	"net/url"
@@ -14,7 +13,7 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-// SnapshotConfig configures the IndexerSnapshot WebSocket listener.
+// SnapshotConfig configures the IndexerBlob WebSocket listener.
 type SnapshotConfig struct {
 	URL            string        // Base WebSocket URL (e.g., "wss://node.example.com")
 	ChainID        uint64        // Chain ID to subscribe to
@@ -22,10 +21,10 @@ type SnapshotConfig struct {
 	ReconnectDelay time.Duration // Base delay between reconnects (default: 1s)
 }
 
-// SnapshotHandler is called when a new IndexerSnapshot is received.
-type SnapshotHandler func(snapshot *lib.IndexerSnapshot) error
+// SnapshotHandler is called when a new IndexerBlob is received.
+type SnapshotHandler func(blob *fsm.IndexerBlob) error
 
-// SnapshotListener subscribes to a Canopy node via WebSocket for IndexerSnapshot messages.
+// SnapshotListener subscribes to a Canopy node via WebSocket for IndexerBlob messages.
 type SnapshotListener struct {
 	config     SnapshotConfig
 	onSnapshot SnapshotHandler
@@ -38,7 +37,7 @@ type SnapshotListener struct {
 	lastMessageAt time.Time
 }
 
-// NewSnapshotListener creates a new IndexerSnapshot WebSocket listener.
+// NewSnapshotListener creates a new IndexerBlob WebSocket listener.
 func NewSnapshotListener(config SnapshotConfig, onSnapshot SnapshotHandler) *SnapshotListener {
 	if config.MaxRetries <= 0 {
 		config.MaxRetries = 25
@@ -66,7 +65,7 @@ func (l *SnapshotListener) Run(ctx context.Context) error {
 		default:
 		}
 
-		slog.Info("connecting to canopy node for snapshots",
+		slog.Info("connecting to canopy node for blobs",
 			"attempt", attempt+1,
 			"max_retries", l.config.MaxRetries,
 			"url", wsURL,
@@ -80,7 +79,7 @@ func (l *SnapshotListener) Run(ctx context.Context) error {
 			l.messageCount = 0
 			l.mu.Unlock()
 
-			slog.Info("snapshot websocket connected", "url", wsURL)
+			slog.Info("blob websocket connected", "url", wsURL)
 
 			err = l.listen(ctx)
 			if err == context.Canceled {
@@ -96,7 +95,7 @@ func (l *SnapshotListener) Run(ctx context.Context) error {
 			}
 			l.mu.Unlock()
 
-			slog.Warn("snapshot websocket disconnected",
+			slog.Warn("blob websocket disconnected",
 				"err", err,
 				"uptime", uptime.Round(time.Second),
 				"messages_received", msgCount,
@@ -107,7 +106,7 @@ func (l *SnapshotListener) Run(ctx context.Context) error {
 			continue
 		}
 
-		slog.Warn("failed to connect to canopy node for snapshots",
+		slog.Warn("failed to connect to canopy node for blobs",
 			"attempt", attempt+1,
 			"err", err,
 		)
@@ -124,7 +123,7 @@ func (l *SnapshotListener) Run(ctx context.Context) error {
 	return fmt.Errorf("max retries (%d) reached", l.config.MaxRetries)
 }
 
-// buildURL constructs the WebSocket subscription URL for IndexerSnapshot.
+// buildURL constructs the WebSocket subscription URL for IndexerBlob.
 func (l *SnapshotListener) buildURL() (string, error) {
 	parsed, err := url.Parse(l.config.URL)
 	if err != nil {
@@ -141,9 +140,9 @@ func (l *SnapshotListener) buildURL() (string, error) {
 		wsScheme = "wss"
 	}
 
-	// Canopy subscription path for IndexerSnapshot
+	// Canopy subscription path for IndexerBlob
 	basePath := parsed.Path
-	fullPath := basePath + "/v1/subscribe-block-data"
+	fullPath := basePath + "/v1/subscribe-indexer-blobs"
 
 	wsURL := url.URL{
 		Scheme:   wsScheme,
@@ -155,7 +154,7 @@ func (l *SnapshotListener) buildURL() (string, error) {
 	return wsURL.String(), nil
 }
 
-// listen reads IndexerSnapshot messages from the WebSocket connection.
+// listen reads IndexerBlob messages from the WebSocket connection.
 func (l *SnapshotListener) listen(ctx context.Context) error {
 	for {
 		select {
@@ -169,10 +168,10 @@ func (l *SnapshotListener) listen(ctx context.Context) error {
 			return fmt.Errorf("read message: %w", err)
 		}
 
-		// Unmarshal protobuf IndexerSnapshot
-		snapshot := new(lib.IndexerSnapshot)
-		if err := lib.Unmarshal(data, snapshot); err != nil {
-			slog.Warn("snapshot websocket unmarshal failed",
+		// Unmarshal protobuf IndexerBlob
+		blob := new(fsm.IndexerBlob)
+		if err := lib.Unmarshal(data, blob); err != nil {
+			slog.Warn("blob websocket unmarshal failed",
 				"err", err,
 				"data_len", len(data),
 			)
@@ -186,37 +185,30 @@ func (l *SnapshotListener) listen(ctx context.Context) error {
 		msgNum := l.messageCount
 		l.mu.Unlock()
 
-		slog.Info("snapshot received",
-			"chain_id", l.config.ChainID,
-			"height", snapshot.Height,
-			"msg_num", msgNum,
-			"size_bytes", len(data),
-			"txs", len(snapshot.Transactions),
-			"events", len(snapshot.Events),
-			"accounts", len(snapshot.Accounts),
-			"validators", len(snapshot.ValidatorsCurrent),
-			"pools", len(snapshot.PoolsCurrent),
-			"dex_batches", len(snapshot.DexBatchesCurrent),
-		)
-
-		// Log all accounts and balances
-		for i, accBytes := range snapshot.Accounts {
-			acc := new(fsm.Account)
-			if err := lib.Unmarshal(accBytes, acc); err != nil {
-				slog.Warn("failed to unmarshal account", "index", i, "err", err)
-				continue
+		// Extract height from block for logging
+		var height uint64
+		if len(blob.Block) > 0 {
+			var block lib.BlockResult
+			if err := lib.Unmarshal(blob.Block, &block); err == nil && block.BlockHeader != nil {
+				height = block.BlockHeader.Height
 			}
-			slog.Info("account",
-				"height", snapshot.Height,
-				"address", hex.EncodeToString(acc.Address),
-				"balance", acc.Amount,
-			)
 		}
 
+		slog.Info("blob received",
+			"chain_id", l.config.ChainID,
+			"height", height,
+			"msg_num", msgNum,
+			"size_bytes", len(data),
+			"accounts", len(blob.Accounts),
+			"validators", len(blob.Validators),
+			"pools", len(blob.Pools),
+			"dex_batches", len(blob.DexBatches),
+		)
+
 		// Call the handler
-		if err := l.onSnapshot(snapshot); err != nil {
-			slog.Error("snapshot handler failed",
-				"height", snapshot.Height,
+		if err := l.onSnapshot(blob); err != nil {
+			slog.Error("blob handler failed",
+				"height", height,
 				"err", err,
 			)
 			// Continue processing - don't disconnect on handler errors

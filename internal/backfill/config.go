@@ -26,6 +26,9 @@ type Config struct {
 
 	// ProgressInterval is how often to log progress.
 	ProgressInterval time.Duration
+
+	// UseBlobs enables blob-based fetching (single RPC call per block).
+	UseBlobs bool
 }
 
 // DefaultConfig returns a Config with default values.
@@ -76,6 +79,10 @@ func LoadConfig() *Config {
 		if d, err := time.ParseDuration(v); err == nil {
 			cfg.ProgressInterval = d
 		}
+	}
+
+	if v := os.Getenv("BACKFILL_USE_BLOBS"); v == "true" || v == "1" {
+		cfg.UseBlobs = true
 	}
 
 	return cfg

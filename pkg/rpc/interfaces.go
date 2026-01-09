@@ -28,6 +28,7 @@ type Client interface {
 	SubsidizedCommitteesByHeight(ctx context.Context, height uint64) ([]uint64, error)
 	RetiredCommitteesByHeight(ctx context.Context, height uint64) ([]uint64, error)
 	SupplyByHeight(ctx context.Context, height uint64) (*fsm.Supply, error)
+	Blob(ctx context.Context, height uint64) (*fsm.IndexerBlobs, error)
 	Poll(ctx context.Context) (fsm.Poll, error)
 	Proposals(ctx context.Context) (fsm.GovProposals, error)
 }

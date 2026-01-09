@@ -16,7 +16,7 @@ import (
 	"github.com/canopy-network/canopy-indexer/internal/worker"
 	"github.com/canopy-network/canopy-indexer/pkg/rpc"
 	"github.com/canopy-network/canopy-indexer/pkg/snapshot"
-	"github.com/canopy-network/canopy/lib"
+	"github.com/canopy-network/canopy/fsm"
 	"github.com/canopy-network/canopyx/pkg/db/postgres"
 	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
@@ -106,7 +106,7 @@ func main() {
 	// Run all components
 	g, ctx := errgroup.WithContext(ctx)
 
-	// WebSocket Snapshot Mode - receives full IndexerSnapshot instead of just height
+	// WebSocket Snapshot Mode - receives IndexerBlob instead of just height
 	if cfg.WSSnapshotEnabled && cfg.WSSnapshotURL != "" {
 		chainID := cfg.WSSnapshotChainID
 		snapshotListener := listener.NewSnapshotListener(listener.SnapshotConfig{
@@ -114,14 +114,16 @@ func main() {
 			ChainID:        chainID,
 			MaxRetries:     cfg.WSMaxRetries,
 			ReconnectDelay: cfg.WSReconnectDelay,
-		}, func(snap *lib.IndexerSnapshot) error {
-			data, err := snapshot.Decode(snap, chainID)
+		}, func(blob *fsm.IndexerBlob) error {
+			// Wrap single blob in IndexerBlobs for decoder
+			blobs := &fsm.IndexerBlobs{Current: blob}
+			data, err := snapshot.Decode(blobs, chainID)
 			if err != nil {
-				slog.Error("failed to decode snapshot", "height", snap.Height, "err", err)
+				slog.Error("failed to decode blob", "err", err)
 				return err
 			}
 			if err := idx.IndexBlockWithData(ctx, data); err != nil {
-				slog.Error("failed to index snapshot", "height", snap.Height, "err", err)
+				slog.Error("failed to index blob", "height", data.Height, "err", err)
 				return err
 			}
 			return nil
@@ -149,7 +151,7 @@ func main() {
 		for _, chain := range cfg.Chains {
 			chainID := chain.ChainID
 			rpcClient := rpcClients[chainID]
-			bf := backfill.New(rpcClient, pool, idx, chainID, nil)
+			bf := backfill.New(rpcClient, &client, idx, chainID, nil)
 			g.Go(func() error {
 				return runPeriodicHealthCheck(ctx, bf, chainID, cfg.BackfillCheckInterval)
 			})
