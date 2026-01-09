@@ -125,7 +125,7 @@ These still need to be implemented to convert BlockData fields to canopyx models
 ### Phase 2: Update IndexBlock() Method ✅ COMPLETED
 **File:** `internal/indexer/indexer.go`
 
-Replace the current implementation with blob-based fetching:
+Replaced parallel RPC fetching with single blob-based fetch:
 
 ```go
 func (idx *Indexer) IndexBlock(ctx context.Context, chainID, height uint64) error {
@@ -137,11 +137,7 @@ func (idx *Indexer) IndexBlock(ctx context.Context, chainID, height uint64) erro
     // Fetch blob (single HTTP call)
     blobs, err := rpcClient.Blob(ctx, height)
     if err != nil {
-        slog.Error("failed to fetch indexer blob",
-            "chain_id", chainID,
-            "height", height,
-            "err", err,
-        )
+        slog.Error("failed to fetch indexer blob", ...)
         return fmt.Errorf("fetch blob: %w", err)
     }
 
@@ -154,6 +150,31 @@ func (idx *Indexer) IndexBlock(ctx context.Context, chainID, height uint64) erro
     return idx.IndexBlockWithData(ctx, data)
 }
 ```
+
+#### Additional Changes Made
+
+**Moved `BlockData` type to blob package:**
+- Deleted `internal/indexer/types.go`
+- Created `pkg/blob/types.go` with `BlockData` definition
+- Fixed circular import in `pkg/blob/decoder.go`
+
+**Updated 14 files with new import pattern:**
+```go
+// Before
+func (idx *Indexer) writeX(batch *pgx.Batch, data *BlockData)
+
+// After
+import "github.com/canopy-network/canopy-indexer/pkg/blob"
+func (idx *Indexer) writeX(batch *pgx.Batch, data *blob.BlockData)
+```
+
+**Files updated:**
+- `accounts.go`, `block.go`, `committees.go`, `conversions.go`
+- `dex.go`, `events.go`, `fetch.go`, `orders.go`
+- `params.go`, `pools.go`, `supply.go`, `transactions.go`
+- `validators.go`, `write.go`
+
+**Code reduction:** -43 lines of retry/parallel fetch logic removed from `IndexBlock()`
 
 ### Phase 3: Update IndexBlockWithData() Method
 **File:** `internal/indexer/indexer.go`
