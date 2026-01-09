@@ -276,19 +276,4 @@ func (idx *Indexer) writeDoubleSigners(batch *pgx.Batch, data *BlockData) {
 	}
 }
 
-// equalCommittees compares two committee slices for equality.
-func equalCommittees(a, b []uint64) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	aMap := make(map[uint64]bool, len(a))
-	for _, c := range a {
-		aMap[c] = true
-	}
-	for _, c := range b {
-		if !aMap[c] {
-			return false
-		}
-	}
-	return true
-}
+// equalCommittees is now defined in conversions.go

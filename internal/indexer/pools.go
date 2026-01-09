@@ -1,8 +1,6 @@
 package indexer
 
 import (
-	"strconv"
-
 	"github.com/canopy-network/canopy-indexer/pkg/transform"
 	"github.com/jackc/pgx/v5"
 )
@@ -85,7 +83,4 @@ func (idx *Indexer) writePools(batch *pgx.Batch, data *BlockData) {
 	}
 }
 
-// poolHolderKey creates a unique key for a pool holder.
-func poolHolderKey(poolID uint64, address string) string {
-	return strconv.FormatUint(poolID, 10) + ":" + address
-}
+// poolHolderKey is now defined in conversions.go

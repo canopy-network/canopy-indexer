@@ -41,31 +41,7 @@ func (idx *Indexer) writeDexPrices(batch *pgx.Batch, data *BlockData) {
 	}
 }
 
-// dexEvent holds parsed event data for correlation
-type dexEvent struct {
-	OrderID      string
-	EventType    string
-	SoldAmount   uint64
-	BoughtAmount uint64
-	LocalOrigin  bool
-	Success      bool
-	// Deposit fields
-	PointsReceived uint64
-	// Withdrawal fields
-	LocalAmount  uint64
-	RemoteAmount uint64
-	PointsBurned uint64
-}
-
-// h1Maps holds H-1 data for change detection
-type h1Maps struct {
-	OrdersLocked       map[string]*lib.DexLimitOrder
-	OrdersPending      map[string]*lib.DexLimitOrder
-	DepositsLocked     map[string]*lib.DexLiquidityDeposit
-	DepositsPending    map[string]*lib.DexLiquidityDeposit
-	WithdrawalsLocked  map[string]*lib.DexLiquidityWithdraw
-	WithdrawalsPending map[string]*lib.DexLiquidityWithdraw
-}
+// dexEvent and h1Maps types are now defined in conversions.go
 
 func (idx *Indexer) writeDexBatch(batch *pgx.Batch, data *BlockData) {
 	// Parse DEX events from in-memory Events slice (replaces queryDexEvents DB call)
