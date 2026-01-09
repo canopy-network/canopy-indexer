@@ -236,16 +236,16 @@ func (idx *Indexer) IndexBlockWithData(ctx context.Context, data *blob.BlockData
 **Error handling change:**
 - Progress update failure changed from fatal error to warning log (indexing should continue even if progress tracking fails)
 
-### Phase 4: Add canopyx Transactional Write Method
+### Phase 4: Add canopyx Transactional Write Method ✅ COMPLETED
 **File:** `internal/indexer/indexer.go`
 
-Correct transaction handling using context-propagated transactions:
+Implemented transactional writes using context-propagated transactions:
 
 ```go
 func (idx *Indexer) writeWithCanopyx(ctx context.Context, data *CanopyxBlockData) error {
-    return idx.db.Client.BeginFunc(ctx, func(tx pgx.Tx) error {
+    return idx.db.BeginFunc(ctx, func(tx pgx.Tx) error {
         // Embed transaction in context for all insert methods
-        txCtx := idx.db.Client.WithTx(ctx, tx)
+        txCtx := idx.db.WithTx(ctx, tx)
 
         // Insert in dependency order
         if err := idx.db.InsertBlocksStaging(txCtx, data.Block); err != nil {
@@ -315,7 +315,28 @@ func (idx *Indexer) writeWithCanopyx(ctx context.Context, data *CanopyxBlockData
 }
 ```
 
-### Phase 5: Update Indexer Struct
+#### Implementation Details
+
+**Transaction handling:**
+- Uses `idx.db.BeginFunc(ctx, func(tx pgx.Tx) error {` for automatic commit/rollback
+- Creates transaction context with `idx.db.WithTx(ctx, tx)` for context propagation
+- All insert methods receive `txCtx` ensuring they participate in the transaction
+
+**Insert order (18 entity types):**
+1. Core: Block, Transactions, Events, Accounts
+2. Validators: Validators, ValidatorNonSigningInfo, ValidatorDoubleSigningInfo
+3. Pools: Pools, PoolPointsByHolder
+4. Orders: Orders, DexPrices
+5. DEX: DexOrders, DexDeposits, DexWithdrawals
+6. Optional: Params (nil check), Supply (nil check, wrapped in slice)
+7. Committees: Committees, CommitteeValidators, CommitteePayments
+
+**Error handling:**
+- Each insert wrapped with `fmt.Errorf("insert X: %w", err)` for error context
+- Transaction automatically rolled back on any error
+- Proper nil checks for optional `Params` and `Supply` fields
+
+### Phase 5: Update Indexer Struct ✅ COMPLETED
 **File:** `internal/indexer/indexer.go`
 
 ```go
@@ -328,14 +349,14 @@ type Indexer struct {
 func New(ctx context.Context, logger *zap.Logger, chainID uint64) (*Indexer, error) {
     // Initialize chain DB
     chainDB, err := chain.NewWithPoolConfig(ctx, logger, chainID,
-        postgres.GetPoolConfigForComponent("indexer_chain"))
+        *postgres.GetPoolConfigForComponent("indexer_chain"))
     if err != nil {
         return nil, fmt.Errorf("create chain db: %w", err)
     }
 
     // Initialize admin DB
-    adminDB, err := admin.NewWithPoolConfig(ctx, logger,
-        postgres.GetPoolConfigForComponent("indexer_admin"))
+    adminDB, err := admin.NewWithPoolConfig(ctx, logger, "indexer_admin",
+        *postgres.GetPoolConfigForComponent("indexer_admin"))
     if err != nil {
         return nil, fmt.Errorf("create admin db: %w", err)
     }
@@ -347,6 +368,23 @@ func New(ctx context.Context, logger *zap.Logger, chainID uint64) (*Indexer, err
     }, nil
 }
 ```
+
+#### Implementation Details
+
+**Struct changes:**
+- Changed `db` from `*postgres.Client` to `*chain.DB` for typed chain database access
+- Added `adminDB *admin.DB` for separate admin database operations
+- Clear separation of concerns: chain data vs. indexing metadata
+
+**Constructor changes:**
+- New signature: `New(ctx context.Context, logger *zap.Logger, chainID uint64) (*Indexer, error)`
+- Initializes both databases with connection pooling
+- Uses `postgres.GetPoolConfigForComponent()` for optimized connection pools
+- Admin DB gets string identifier `"indexer_admin"` as additional parameter
+- Returns error tuple `(*Indexer, error)` instead of just `*Indexer`
+
+**Breaking change:**
+- Old callers in `cmd/indexer/main.go` and `cmd/backfill/main.go` need updating (Phase 9)
 
 ### Phase 6: Update CanopyxBlockData Structure ✅ COMPLETED (implemented in Phase 3)
 **File:** `internal/indexer/types.go`
@@ -396,10 +434,10 @@ type CanopyxBlockData struct {
 }
 ```
 
-### Phase 7: Add Block Summary Builder ⏳ PARTIAL (in-memory computation done, insert pending)
+### Phase 7: Add Block Summary Builder ✅ COMPLETED
 **File:** `internal/indexer/indexer.go` (implemented inline, not in separate file)
 
-The `buildBlockSummary()` method computes summary counts from converted data. The actual database insert is a placeholder pending Phase 4 completion.
+The `buildBlockSummary()` method computes summary counts from converted data and inserts via canopyx.
 
 ```go
 // buildBlockSummary computes and inserts the block summary from converted data
@@ -474,6 +512,34 @@ func (idx *Indexer) buildBlockSummary(ctx context.Context, data *CanopyxBlockDat
     return idx.db.InsertBlockSummariesStaging(ctx, summary)
 }
 ```
+
+#### Implementation Details
+
+**Summary computation:**
+- Computes all count fields directly from `CanopyxBlockData` in-memory
+- No database queries needed (all data already in memory from conversion)
+- Counts: transactions, accounts, events, validators, pools, orders, dex entities, committees
+
+**Transaction type counting:**
+- Iterates through `data.Transactions` to count by `MessageType`
+- Supports: `send`, `stake`, and other transaction types
+
+**Event type counting:**
+- Iterates through `data.Events` to count by `EventType`
+- Supports: `reward`, `slash`, `dex-swap`, and other event types
+
+**DEX state counting:**
+- Iterates through `data.DexOrders` to count by `State`
+- States: `future`, `locked`, `complete`
+- Tracks success/failure for completed orders
+
+**Supply tracking:**
+- Sets `SupplyChanged` flag if supply data present
+- Captures: `Total`, `Staked`, `DelegatedOnly`
+
+**Database insert:**
+- Uses `idx.db.InsertBlockSummariesStaging(ctx, summary)` for actual persistence
+- No transaction context needed (called after main transaction completes)
 
 ### Phase 8: Remove Legacy Files
 Delete these files containing legacy SQL implementation:
