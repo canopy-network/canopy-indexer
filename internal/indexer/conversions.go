@@ -767,3 +767,144 @@ func buildH1Maps(currentBatchesH1, nextBatchesH1 []*lib.DexBatch) *h1Maps {
 func poolHolderKey(poolID uint64, address string) string {
 	return strconv.FormatUint(poolID, 10) + ":" + address
 }
+
+// =============================================================================
+// Simple Conversions (Direct mappings without change detection)
+// =============================================================================
+
+// convertBlock converts lib.BlockResult to indexermodels.Block
+func convertBlock(block *lib.BlockResult, chainID uint64, blockTime time.Time) *indexermodels.Block {
+	tb := transform.BlockFromResult(block)
+	return &indexermodels.Block{
+		Height:          tb.Height,
+		Hash:            tb.Hash,
+		ProposerAddress: tb.ProposerAddress,
+		TotalTxs:        tb.TotalTxs,
+		NumTxs:          tb.NumTxs,
+	}
+}
+
+// convertTransactions converts []*lib.TxResult to []*indexermodels.Transaction
+func convertTransactions(txs []*lib.TxResult, chainID, height uint64, blockTime time.Time) []*indexermodels.Transaction {
+	result := make([]*indexermodels.Transaction, len(txs))
+	for i, tx := range txs {
+		result[i] = &indexermodels.Transaction{
+			Height:      height,
+			HeightTime:  blockTime,
+			MessageType: tx.MessageType,
+			// Add other fields as needed
+		}
+	}
+	return result
+}
+
+// convertEvents converts []*lib.Event to []*indexermodels.Event
+func convertEvents(events []*lib.Event, chainID, height uint64, blockTime time.Time) []*indexermodels.Event {
+	result := make([]*indexermodels.Event, len(events))
+	for i, event := range events {
+		result[i] = &indexermodels.Event{
+			Height:     height,
+			HeightTime: blockTime,
+			EventType:  event.EventType,
+			// Add other fields
+		}
+	}
+	return result
+}
+
+// convertAccounts converts []*fsm.Account to []*indexermodels.Account
+func convertAccounts(accounts []*fsm.Account, height uint64, blockTime time.Time) []*indexermodels.Account {
+	result := make([]*indexermodels.Account, len(accounts))
+	for i, acc := range accounts {
+		result[i] = &indexermodels.Account{
+			Address:    transform.BytesToHex(acc.Address),
+			Height:     height,
+			HeightTime: blockTime,
+			// Add other fields like balance
+		}
+	}
+	return result
+}
+
+// convertPools converts []*fsm.Pool to []*indexermodels.Pool
+func convertPools(pools []*fsm.Pool, height uint64, blockTime time.Time) []*indexermodels.Pool {
+	result := make([]*indexermodels.Pool, len(pools))
+	for i, pool := range pools {
+		result[i] = &indexermodels.Pool{
+			PoolID:      uint32(pool.Id),
+			Height:      height,
+			HeightTime:  blockTime,
+			Amount:      pool.Amount,
+			TotalPoints: pool.TotalPoolPoints,
+			// Add other fields
+		}
+	}
+	return result
+}
+
+// convertOrders converts []*lib.SellOrder to []*indexermodels.Order
+func convertOrders(orders []*lib.SellOrder, height uint64, blockTime time.Time) []*indexermodels.Order {
+	result := make([]*indexermodels.Order, len(orders))
+	for i, order := range orders {
+		result[i] = &indexermodels.Order{
+			Height:          height,
+			HeightTime:      blockTime,
+			AmountForSale:   order.AmountForSale,
+			RequestedAmount: order.RequestedAmount,
+			// Add other fields
+		}
+	}
+	return result
+}
+
+// convertDexPrices converts []*lib.DexPrice to []*indexermodels.DexPrice
+func convertDexPrices(prices []*lib.DexPrice, height uint64, blockTime time.Time) []*indexermodels.DexPrice {
+	result := make([]*indexermodels.DexPrice, len(prices))
+	for i := range prices {
+		result[i] = &indexermodels.DexPrice{
+			Height:     height,
+			HeightTime: blockTime,
+			// Add other fields like pair
+		}
+	}
+	return result
+}
+
+// convertParams converts *fsm.Params to *indexermodels.Params
+func convertParams(params *fsm.Params, height uint64, blockTime time.Time) *indexermodels.Params {
+	if params == nil {
+		return nil
+	}
+	return &indexermodels.Params{
+		Height:     height,
+		HeightTime: blockTime,
+		// Add param fields
+	}
+}
+
+// convertSupply converts *fsm.Supply to *indexermodels.Supply
+func convertSupply(supply *fsm.Supply, height uint64, blockTime time.Time) *indexermodels.Supply {
+	if supply == nil {
+		return nil
+	}
+	return &indexermodels.Supply{
+		Height:        height,
+		HeightTime:    blockTime,
+		Total:         supply.Total,
+		Staked:        supply.Staked,
+		DelegatedOnly: supply.DelegatedOnly,
+	}
+}
+
+// convertCommittees converts []*lib.CommitteeData to []*indexermodels.Committee
+func convertCommittees(committees []*lib.CommitteeData, height uint64, blockTime time.Time) []*indexermodels.Committee {
+	result := make([]*indexermodels.Committee, len(committees))
+	for i := range committees {
+		result[i] = &indexermodels.Committee{
+			Height:     height,
+			HeightTime: blockTime,
+			// Add other fields
+		}
+	}
+	return result
+}
