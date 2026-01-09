@@ -87,7 +87,16 @@ func main() {
 	defer pub.Close()
 
 	// Create indexer
-	idx := indexer.New(rpcClients, &client)
+	idx, err := indexer.New(ctx, logger, cfg.Chains[0].ChainID)
+	if err != nil {
+		slog.Error("failed to create indexer", "err", err)
+		os.Exit(1)
+	}
+
+	// Set RPC clients for all chains
+	for _, chain := range cfg.Chains {
+		idx.SetRPCClient(chain.ChainID, rpcClients[chain.ChainID])
+	}
 
 	// Create worker
 	wrk, err := worker.New(worker.Config{

@@ -10,20 +10,45 @@ import (
 	"github.com/canopy-network/canopy-indexer/pkg/rpc"
 	indexermodels "github.com/canopy-network/canopyx/pkg/db/models/indexer"
 	"github.com/canopy-network/canopyx/pkg/db/postgres"
+	"github.com/canopy-network/canopyx/pkg/db/postgres/admin"
+	"github.com/canopy-network/canopyx/pkg/db/postgres/chain"
+	"github.com/jackc/pgx/v5"
+	"go.uber.org/zap"
 )
 
 // Indexer handles the core indexing logic.
 type Indexer struct {
-	rpcClients map[uint64]*rpc.HTTPClient // chainID -> RPC client
-	db         *postgres.Client
+	rpcClients map[uint64]*rpc.HTTPClient
+	db         *chain.DB // Chain database for entity inserts
+	adminDB    *admin.DB // Admin database for index progress
 }
 
-// New creates a new Indexer with a map of RPC clients keyed by chain ID.
-func New(rpcClients map[uint64]*rpc.HTTPClient, db *postgres.Client) *Indexer {
-	return &Indexer{
-		rpcClients: rpcClients,
-		db:         db,
+// New creates a new Indexer with initialized databases.
+func New(ctx context.Context, logger *zap.Logger, chainID uint64) (*Indexer, error) {
+	// Initialize chain DB
+	chainDB, err := chain.NewWithPoolConfig(ctx, logger, chainID,
+		*postgres.GetPoolConfigForComponent("indexer_chain"))
+	if err != nil {
+		return nil, fmt.Errorf("create chain db: %w", err)
 	}
+
+	// Initialize admin DB
+	adminDB, err := admin.NewWithPoolConfig(ctx, logger, "indexer_admin",
+		*postgres.GetPoolConfigForComponent("indexer_admin"))
+	if err != nil {
+		return nil, fmt.Errorf("create admin db: %w", err)
+	}
+
+	return &Indexer{
+		rpcClients: make(map[uint64]*rpc.HTTPClient),
+		db:         chainDB,
+		adminDB:    adminDB,
+	}, nil
+}
+
+// SetRPCClient sets the RPC client for a specific chain.
+func (idx *Indexer) SetRPCClient(chainID uint64, client *rpc.HTTPClient) {
+	idx.rpcClients[chainID] = client
 }
 
 // rpcForChain returns the RPC client for the given chain ID.
@@ -100,13 +125,80 @@ func (idx *Indexer) IndexBlockWithData(ctx context.Context, data *blob.BlockData
 
 // updateProgress updates the indexing progress for a chain.
 func (idx *Indexer) updateProgress(ctx context.Context, chainID, height uint64) error {
-	return idx.db.Exec(ctx, `SELECT update_index_progress($1, $2)`, chainID, height)
+	return idx.adminDB.Exec(ctx, `SELECT update_index_progress($1, $2)`, chainID, height)
 }
 
 // writeWithCanopyx implements transactional writes using canopyx database operations
 func (idx *Indexer) writeWithCanopyx(ctx context.Context, data *CanopyxBlockData) error {
-	// Placeholder: in canopyx, this would use idx.db.Client.BeginFunc with inserts
-	return nil
+	return idx.db.BeginFunc(ctx, func(tx pgx.Tx) error {
+		// Embed transaction in context for all insert methods
+		txCtx := idx.db.WithTx(ctx, tx)
+
+		// Insert in dependency order
+		if err := idx.db.InsertBlocksStaging(txCtx, data.Block); err != nil {
+			return fmt.Errorf("insert block: %w", err)
+		}
+		if err := idx.db.InsertTransactionsStaging(txCtx, data.Transactions); err != nil {
+			return fmt.Errorf("insert transactions: %w", err)
+		}
+		if err := idx.db.InsertEventsStaging(txCtx, data.Events); err != nil {
+			return fmt.Errorf("insert events: %w", err)
+		}
+		if err := idx.db.InsertAccountsStaging(txCtx, data.Accounts); err != nil {
+			return fmt.Errorf("insert accounts: %w", err)
+		}
+		if err := idx.db.InsertValidatorsStaging(txCtx, data.Validators); err != nil {
+			return fmt.Errorf("insert validators: %w", err)
+		}
+		if err := idx.db.InsertValidatorNonSigningInfoStaging(txCtx, data.ValidatorNonSigningInfo); err != nil {
+			return fmt.Errorf("insert validator non-signing info: %w", err)
+		}
+		if err := idx.db.InsertValidatorDoubleSigningInfoStaging(txCtx, data.ValidatorDoubleSigningInfo); err != nil {
+			return fmt.Errorf("insert validator double-signing info: %w", err)
+		}
+		if err := idx.db.InsertPoolsStaging(txCtx, data.Pools); err != nil {
+			return fmt.Errorf("insert pools: %w", err)
+		}
+		if err := idx.db.InsertOrdersStaging(txCtx, data.Orders); err != nil {
+			return fmt.Errorf("insert orders: %w", err)
+		}
+		if err := idx.db.InsertDexPricesStaging(txCtx, data.DexPrices); err != nil {
+			return fmt.Errorf("insert dex prices: %w", err)
+		}
+		if err := idx.db.InsertDexOrdersStaging(txCtx, data.DexOrders); err != nil {
+			return fmt.Errorf("insert dex orders: %w", err)
+		}
+		if err := idx.db.InsertDexDepositsStaging(txCtx, data.DexDeposits); err != nil {
+			return fmt.Errorf("insert dex deposits: %w", err)
+		}
+		if err := idx.db.InsertDexWithdrawalsStaging(txCtx, data.DexWithdrawals); err != nil {
+			return fmt.Errorf("insert dex withdrawals: %w", err)
+		}
+		if err := idx.db.InsertPoolPointsByHolderStaging(txCtx, data.PoolPointsByHolder); err != nil {
+			return fmt.Errorf("insert pool points: %w", err)
+		}
+		if data.Params != nil {
+			if err := idx.db.InsertParamsStaging(txCtx, data.Params); err != nil {
+				return fmt.Errorf("insert params: %w", err)
+			}
+		}
+		if data.Supply != nil {
+			if err := idx.db.InsertSupplyStaging(txCtx, []*indexermodels.Supply{data.Supply}); err != nil {
+				return fmt.Errorf("insert supply: %w", err)
+			}
+		}
+		if err := idx.db.InsertCommitteesStaging(txCtx, data.Committees); err != nil {
+			return fmt.Errorf("insert committees: %w", err)
+		}
+		if err := idx.db.InsertCommitteeValidatorsStaging(txCtx, data.CommitteeValidators); err != nil {
+			return fmt.Errorf("insert committee validators: %w", err)
+		}
+		if err := idx.db.InsertCommitteePaymentsStaging(txCtx, data.CommitteePayments); err != nil {
+			return fmt.Errorf("insert committee payments: %w", err)
+		}
+
+		return nil
+	})
 }
 
 // buildBlockSummary computes and inserts the block summary from converted data
@@ -178,8 +270,8 @@ func (idx *Indexer) buildBlockSummary(ctx context.Context, data *CanopyxBlockDat
 		summary.SupplyDelegatedOnly = data.Supply.DelegatedOnly
 	}
 
-	// Placeholder: in canopyx, this would be idx.db.InsertBlockSummariesStaging(ctx, summary)
-	return nil
+	// Insert block summary using chain database
+	return idx.db.InsertBlockSummariesStaging(ctx, summary)
 }
 
 // convertToCanopyxModels applies change detection and converts to canopyx types

@@ -94,7 +94,16 @@ func main() {
 	}
 
 	// Create indexer
-	idx := indexer.New(rpcClients, &client)
+	idx, err := indexer.New(ctx, logger, chainsToBackfill[0].ChainID)
+	if err != nil {
+		slog.Error("failed to create indexer", "err", err)
+		os.Exit(1)
+	}
+
+	// Set RPC clients for all chains
+	for _, chain := range chainsToBackfill {
+		idx.SetRPCClient(chain.ChainID, rpcClients[chain.ChainID])
+	}
 
 	// Build backfill config
 	backfillCfg := backfill.LoadConfig()
