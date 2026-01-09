@@ -14,8 +14,8 @@ import (
 	"github.com/canopy-network/canopy-indexer/internal/listener"
 	"github.com/canopy-network/canopy-indexer/internal/publisher"
 	"github.com/canopy-network/canopy-indexer/internal/worker"
+	"github.com/canopy-network/canopy-indexer/pkg/blob"
 	"github.com/canopy-network/canopy-indexer/pkg/rpc"
-	"github.com/canopy-network/canopy-indexer/pkg/snapshot"
 	"github.com/canopy-network/canopy/fsm"
 	"github.com/canopy-network/canopyx/pkg/db/postgres"
 	"github.com/redis/go-redis/v9"
@@ -106,18 +106,18 @@ func main() {
 	// Run all components
 	g, ctx := errgroup.WithContext(ctx)
 
-	// WebSocket Snapshot Mode - receives IndexerBlob instead of just height
-	if cfg.WSSnapshotEnabled && cfg.WSSnapshotURL != "" {
-		chainID := cfg.WSSnapshotChainID
-		snapshotListener := listener.NewSnapshotListener(listener.SnapshotConfig{
-			URL:            cfg.WSSnapshotURL,
+	// WebSocket Blob Mode - receives IndexerBlob instead of just height
+	if cfg.WSBlobEnabled && cfg.WSBlobURL != "" {
+		chainID := cfg.WSBlobChainID
+		blobListener := listener.NewBlobListener(listener.BlobConfig{
+			URL:            cfg.WSBlobURL,
 			ChainID:        chainID,
 			MaxRetries:     cfg.WSMaxRetries,
 			ReconnectDelay: cfg.WSReconnectDelay,
-		}, func(blob *fsm.IndexerBlob) error {
+		}, func(b *fsm.IndexerBlob) error {
 			// Wrap single blob in IndexerBlobs for decoder
-			blobs := &fsm.IndexerBlobs{Current: blob}
-			data, err := snapshot.Decode(blobs, chainID)
+			blobs := &fsm.IndexerBlobs{Current: b}
+			data, err := blob.Decode(blobs, chainID)
 			if err != nil {
 				slog.Error("failed to decode blob", "err", err)
 				return err
@@ -130,11 +130,11 @@ func main() {
 		})
 
 		g.Go(func() error {
-			slog.Info("starting snapshot websocket listener",
+			slog.Info("starting blob websocket listener",
 				"chain_id", chainID,
-				"url", cfg.WSSnapshotURL,
+				"url", cfg.WSBlobURL,
 			)
-			return snapshotListener.Run(ctx)
+			return blobListener.Run(ctx)
 		})
 	} else if cfg.WSEnabled {
 		// Legacy WebSocket mode - only receives height, requires HTTP fetch

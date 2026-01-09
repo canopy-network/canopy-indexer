@@ -104,7 +104,7 @@ func (idx *Indexer) IndexBlock(ctx context.Context, chainID, height uint64) erro
 	return nil
 }
 
-// IndexBlockWithData indexes a block using pre-fetched data (from WebSocket snapshot).
+// IndexBlockWithData indexes a block using pre-fetched data (from WebSocket blob).
 // This bypasses the fetch phase entirely and goes directly to the write phase.
 func (idx *Indexer) IndexBlockWithData(ctx context.Context, data *BlockData) error {
 	start := time.Now()
@@ -128,7 +128,7 @@ func (idx *Indexer) IndexBlockWithData(ctx context.Context, data *BlockData) err
 		return fmt.Errorf("update progress: %w", err)
 	}
 
-	slog.Debug("indexed block (from snapshot)",
+	slog.Debug("indexed block (from blob)",
 		"chain_id", data.ChainID,
 		"height", data.Height,
 		"duration", time.Since(start),

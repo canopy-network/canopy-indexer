@@ -13,23 +13,23 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-// SnapshotConfig configures the IndexerBlob WebSocket listener.
-type SnapshotConfig struct {
+// BlobConfig configures the IndexerBlob WebSocket listener.
+type BlobConfig struct {
 	URL            string        // Base WebSocket URL (e.g., "wss://node.example.com")
 	ChainID        uint64        // Chain ID to subscribe to
 	MaxRetries     int           // Max reconnection attempts (default: 25)
 	ReconnectDelay time.Duration // Base delay between reconnects (default: 1s)
 }
 
-// SnapshotHandler is called when a new IndexerBlob is received.
-type SnapshotHandler func(blob *fsm.IndexerBlob) error
+// BlobHandler is called when a new IndexerBlob is received.
+type BlobHandler func(blob *fsm.IndexerBlob) error
 
-// SnapshotListener subscribes to a Canopy node via WebSocket for IndexerBlob messages.
-type SnapshotListener struct {
-	config     SnapshotConfig
-	onSnapshot SnapshotHandler
-	conn       *websocket.Conn
-	mu         sync.RWMutex
+// BlobListener subscribes to a Canopy node via WebSocket for IndexerBlob messages.
+type BlobListener struct {
+	config BlobConfig
+	onBlob BlobHandler
+	conn   *websocket.Conn
+	mu     sync.RWMutex
 
 	// Stats (protected by mu)
 	connectedAt   time.Time
@@ -37,22 +37,22 @@ type SnapshotListener struct {
 	lastMessageAt time.Time
 }
 
-// NewSnapshotListener creates a new IndexerBlob WebSocket listener.
-func NewSnapshotListener(config SnapshotConfig, onSnapshot SnapshotHandler) *SnapshotListener {
+// NewBlobListener creates a new IndexerBlob WebSocket listener.
+func NewBlobListener(config BlobConfig, onBlob BlobHandler) *BlobListener {
 	if config.MaxRetries <= 0 {
 		config.MaxRetries = 25
 	}
 	if config.ReconnectDelay <= 0 {
 		config.ReconnectDelay = time.Second
 	}
-	return &SnapshotListener{
-		config:     config,
-		onSnapshot: onSnapshot,
+	return &BlobListener{
+		config: config,
+		onBlob: onBlob,
 	}
 }
 
 // Run starts the listener. It blocks until the context is cancelled.
-func (l *SnapshotListener) Run(ctx context.Context) error {
+func (l *BlobListener) Run(ctx context.Context) error {
 	wsURL, err := l.buildURL()
 	if err != nil {
 		return fmt.Errorf("build websocket url: %w", err)
@@ -124,7 +124,7 @@ func (l *SnapshotListener) Run(ctx context.Context) error {
 }
 
 // buildURL constructs the WebSocket subscription URL for IndexerBlob.
-func (l *SnapshotListener) buildURL() (string, error) {
+func (l *BlobListener) buildURL() (string, error) {
 	parsed, err := url.Parse(l.config.URL)
 	if err != nil {
 		return "", err
@@ -155,7 +155,7 @@ func (l *SnapshotListener) buildURL() (string, error) {
 }
 
 // listen reads IndexerBlob messages from the WebSocket connection.
-func (l *SnapshotListener) listen(ctx context.Context) error {
+func (l *BlobListener) listen(ctx context.Context) error {
 	for {
 		select {
 		case <-ctx.Done():
@@ -206,7 +206,7 @@ func (l *SnapshotListener) listen(ctx context.Context) error {
 		)
 
 		// Call the handler
-		if err := l.onSnapshot(blob); err != nil {
+		if err := l.onBlob(blob); err != nil {
 			slog.Error("blob handler failed",
 				"height", height,
 				"err", err,
@@ -217,7 +217,7 @@ func (l *SnapshotListener) listen(ctx context.Context) error {
 }
 
 // Close gracefully closes the WebSocket connection.
-func (l *SnapshotListener) Close() error {
+func (l *BlobListener) Close() error {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
@@ -230,14 +230,14 @@ func (l *SnapshotListener) Close() error {
 }
 
 // IsConnected returns whether the listener is currently connected.
-func (l *SnapshotListener) IsConnected() bool {
+func (l *BlobListener) IsConnected() bool {
 	l.mu.RLock()
 	defer l.mu.RUnlock()
 	return l.conn != nil
 }
 
 // Stats returns current connection statistics.
-func (l *SnapshotListener) Stats() (connected bool, uptime time.Duration, messageCount uint64, lastMessage time.Time) {
+func (l *BlobListener) Stats() (connected bool, uptime time.Duration, messageCount uint64, lastMessage time.Time) {
 	l.mu.RLock()
 	defer l.mu.RUnlock()
 	connected = l.conn != nil

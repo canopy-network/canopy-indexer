@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"github.com/canopy-network/canopy-indexer/internal/indexer"
+	"github.com/canopy-network/canopy-indexer/pkg/blob"
 	"github.com/canopy-network/canopy-indexer/pkg/rpc"
-	"github.com/canopy-network/canopy-indexer/pkg/snapshot"
 	"github.com/canopy-network/canopyx/pkg/db/postgres"
 	"golang.org/x/sync/errgroup"
 )
@@ -254,7 +254,7 @@ func (b *Backfiller) indexBlockWithBlob(ctx context.Context, height uint64) erro
 		return fmt.Errorf("fetch blob: %w", err)
 	}
 
-	data, err := snapshot.Decode(blobs, b.chainID)
+	data, err := blob.Decode(blobs, b.chainID)
 	if err != nil {
 		return fmt.Errorf("decode blob: %w", err)
 	}
