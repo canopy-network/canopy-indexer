@@ -116,8 +116,8 @@ type h1Maps struct {
 - `internal/indexer/pools.go` - Removed `poolHolderKey()` (now in conversions.go)
 - `internal/indexer/dex.go` - Removed `dexEvent` and `h1Maps` types (now in conversions.go)
 
-#### Simple Conversions (TODO - Phase 1b)
-These still need to be implemented to convert BlockData fields to canopyx models:
+#### Simple Conversions ✅ COMPLETED (Phase 1b - implemented in Phase 3)
+Direct mapping conversions for BlockData fields to canopyx models:
 - `convertBlock()`, `convertTransactions()`, `convertEvents()`, `convertAccounts()`
 - `convertPools()`, `convertOrders()`, `convertDexPrices()`
 - `convertParams()`, `convertSupply()`, `convertCommittees()`
@@ -176,12 +176,18 @@ func (idx *Indexer) writeX(batch *pgx.Batch, data *blob.BlockData)
 
 **Code reduction:** -43 lines of retry/parallel fetch logic removed from `IndexBlock()`
 
-### Phase 3: Update IndexBlockWithData() Method
+### Phase 3: Update IndexBlockWithData() Method ✅ COMPLETED
 **File:** `internal/indexer/indexer.go`
 
+Refactored `IndexBlockWithData` to use the canopyx conversion model:
+
 ```go
-func (idx *Indexer) IndexBlockWithData(ctx context.Context, data *BlockData) error {
+func (idx *Indexer) IndexBlockWithData(ctx context.Context, data *blob.BlockData) error {
     start := time.Now()
+
+    if data == nil {
+        return fmt.Errorf("block data is nil")
+    }
 
     // Convert BlockData to canopyx models (includes change detection)
     canopyxData := idx.convertToCanopyxModels(data)
@@ -196,8 +202,8 @@ func (idx *Indexer) IndexBlockWithData(ctx context.Context, data *BlockData) err
         return fmt.Errorf("build block summary: %w", err)
     }
 
-    // Record index progress
-    if err := idx.adminDB.RecordIndexed(ctx, data.ChainID, data.Height, 0, ""); err != nil {
+    // Record index progress (warning on failure, not fatal)
+    if err := idx.updateProgress(ctx, data.ChainID, data.Height); err != nil {
         slog.Warn("failed to record index progress", "err", err)
     }
 
@@ -209,53 +215,26 @@ func (idx *Indexer) IndexBlockWithData(ctx context.Context, data *BlockData) err
 
     return nil
 }
-
-// convertToCanopyxModels applies change detection and converts to canopyx types
-func (idx *Indexer) convertToCanopyxModels(data *BlockData) *CanopyxBlockData {
-    result := &CanopyxBlockData{
-        ChainID:   data.ChainID,
-        Height:    data.Height,
-        BlockTime: data.BlockTime,
-    }
-
-    // Simple conversions
-    result.Block = convertBlock(data.Block, data.ChainID, data.BlockTime)
-    result.Transactions = convertTransactions(data.Transactions, data.ChainID, data.Height, data.BlockTime)
-    result.Events = convertEvents(data.Events, data.ChainID, data.Height, data.BlockTime)
-    result.Accounts = convertAccounts(data.AccountsCurrent, data.Height, data.BlockTime)
-    result.Pools = convertPools(data.PoolsCurrent, data.Height, data.BlockTime)
-    result.Orders = convertOrders(data.Orders, data.Height, data.BlockTime)
-    result.DexPrices = convertDexPrices(data.DexPrices, data.Height, data.BlockTime)
-    result.Params = convertParams(data.Params, data.Height, data.BlockTime)
-    result.Supply = convertSupply(data.Supply, data.Height, data.BlockTime)
-    result.Committees = convertCommittees(data.Committees, data.Height, data.BlockTime)
-
-    // Change detection conversions
-    result.Validators, result.CommitteeValidators = convertValidatorsWithChangeDetection(
-        data.ValidatorsCurrent, data.ValidatorsPrevious,
-        data.Height, data.BlockTime,
-    )
-    result.ValidatorNonSigningInfo = convertNonSignersWithChangeDetection(
-        data.NonSignersCurrent, data.NonSignersPrevious,
-        data.Height, data.BlockTime,
-    )
-    result.ValidatorDoubleSigningInfo = convertDoubleSignersWithChangeDetection(
-        data.DoubleSignersCurrent, data.DoubleSignersPrevious,
-        data.Height, data.BlockTime,
-    )
-    result.PoolPointsByHolder = convertPoolPointsWithChangeDetection(
-        data.PoolsCurrent, data.PoolsPrevious,
-        data.Height, data.BlockTime,
-    )
-
-    // DEX state machine conversions
-    result.DexOrders = convertDexOrdersWithStateMachine(data, data.Events)
-    result.DexDeposits = convertDexDepositsWithStateMachine(data, data.Events)
-    result.DexWithdrawals = convertDexWithdrawalsWithStateMachine(data, data.Events)
-
-    return result
-}
 ```
+
+#### Key Changes Made
+
+**New methods added to `indexer.go`:**
+
+| Method | Description | Status |
+|--------|-------------|--------|
+| `convertToCanopyxModels()` | Converts `blob.BlockData` to `CanopyxBlockData` using all conversion functions | ✅ Implemented |
+| `writeWithCanopyx()` | Placeholder for Phase 4 transactional writes | 🔲 Placeholder |
+| `buildBlockSummary()` | Computes block summary from converted data | ✅ In-memory computation |
+| `updateProgress()` | Updates indexing progress via SQL function | ✅ Implemented |
+
+**`convertToCanopyxModels()` calls:**
+- Simple conversions: `convertBlock`, `convertTransactions`, `convertEvents`, `convertAccounts`, `convertPools`, `convertOrders`, `convertDexPrices`, `convertParams`, `convertSupply`, `convertCommittees`
+- Change detection: `ConvertValidatorsWithChangeDetection`, `ConvertNonSignersWithChangeDetection`, `ConvertDoubleSignersWithChangeDetection`, `ConvertPoolPointsWithChangeDetection`
+- DEX state machine: `ConvertDexOrdersWithStateMachine`, `ConvertDexDepositsWithStateMachine`, `ConvertDexWithdrawalsWithStateMachine`
+
+**Error handling change:**
+- Progress update failure changed from fatal error to warning log (indexing should continue even if progress tracking fails)
 
 ### Phase 4: Add canopyx Transactional Write Method
 **File:** `internal/indexer/indexer.go`
@@ -369,8 +348,10 @@ func New(ctx context.Context, logger *zap.Logger, chainID uint64) (*Indexer, err
 }
 ```
 
-### Phase 6: Update CanopyxBlockData Structure
+### Phase 6: Update CanopyxBlockData Structure ✅ COMPLETED (implemented in Phase 3)
 **File:** `internal/indexer/types.go`
+
+Created new `types.go` with `CanopyxBlockData` struct containing all canopyx model types:
 
 ```go
 type CanopyxBlockData struct {
@@ -415,8 +396,10 @@ type CanopyxBlockData struct {
 }
 ```
 
-### Phase 7: Add Block Summary Builder
-**File:** `internal/indexer/summary.go`
+### Phase 7: Add Block Summary Builder ⏳ PARTIAL (in-memory computation done, insert pending)
+**File:** `internal/indexer/indexer.go` (implemented inline, not in separate file)
+
+The `buildBlockSummary()` method computes summary counts from converted data. The actual database insert is a placeholder pending Phase 4 completion.
 
 ```go
 // buildBlockSummary computes and inserts the block summary from converted data
@@ -563,12 +546,12 @@ import (
 ## Files Changed
 
 ### Modified Files
-- `internal/indexer/indexer.go` - Core indexing logic with retry
-- `internal/indexer/types.go` - Add CanopyxBlockData structure
+- `internal/indexer/indexer.go` - Core indexing logic, conversion orchestration, block summary builder
+- `internal/indexer/conversions.go` - Added simple conversion functions (Phase 1b)
 
 ### New Files
-- `internal/indexer/conversions.go` - Data conversion with change detection
-- `internal/indexer/summary.go` - Block summary builder
+- `internal/indexer/types.go` - `CanopyxBlockData` struct for canopyx model container
+- `internal/indexer/conversions.go` - Data conversion with change detection (Phase 1)
 
 ### Deleted Files
 - `internal/indexer/fetch.go`
