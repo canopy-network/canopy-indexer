@@ -140,6 +140,7 @@ func main() {
 			RPS:       cfg.RPCRPS,
 			Burst:     cfg.RPCBurst,
 		})
+		slog.Info("created RPC client", "chain_id", chain.ChainID, "rpc_url", chain.RPCURL)
 	}
 
 	// Build backfill config
@@ -300,9 +301,11 @@ func runWorkerMode(ctx context.Context, adminDB *admin.DB, initialChains []confi
 		}
 
 		// Ensure chain is added to indexer
-		if err := idx.AddChain(ctx, chain.ChainID, chain.RPCURL); err != nil {
-			slog.Error("failed to add chain to indexer", "chain_id", chain.ChainID, "err", err)
-			return
+		if !idx.HasChain(chain.ChainID) {
+			if err := idx.AddChain(ctx, chain.ChainID, chain.RPCURL); err != nil {
+				slog.Error("failed to add chain to indexer", "chain_id", chain.ChainID, "err", err)
+				return
+			}
 		}
 
 		// Start backfill in goroutine
