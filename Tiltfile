@@ -111,8 +111,8 @@ local_resource(
         echo "Running migrations..."
         psql -h {pg_host} -p {pg_port} -U {pg_user} -d {pg_db} -f migrations/001_initial.sql
 
-        echo "Restarting indexer via Tilt..."
-        tilt trigger --port 10370 indexer-compile
+        echo "Restarting indexer service..."
+        docker restart canopy-indexer-indexer 2>/dev/null || true
 
         echo "Database reset complete! Services will restart automatically."
     '''.format(
