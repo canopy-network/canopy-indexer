@@ -2,6 +2,9 @@ package chain
 
 import (
 	"context"
+	"fmt"
+
+	"go.uber.org/zap"
 )
 
 // initCommittees creates the committees table matching indexer.Committee
@@ -48,7 +51,18 @@ func (db *DB) initCommitteeValidators(ctx context.Context) error {
 		CREATE INDEX IF NOT EXISTS idx_committee_validators_address ON committee_validators(validator_address);
 	`
 
-	return db.Exec(ctx, query)
+	db.Logger.Debug("Executing SQL for committee_validators table",
+		zap.String("table", "committee_validators"),
+		zap.String("database", db.Name),
+		zap.Uint64("chain_id", db.ChainID),
+		zap.String("sql", query),
+	)
+
+	if err := db.Exec(ctx, query); err != nil {
+		return fmt.Errorf("create committee_validators table in chain database (chain_id: %d, db: %s): SQL execution failed: %w", db.ChainID, db.Name, err)
+	}
+
+	return nil
 }
 
 // initCommitteePayments creates the committee_payments table matching indexer.CommitteePayment

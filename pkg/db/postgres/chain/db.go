@@ -115,9 +115,15 @@ func (db *DB) InitializeDB(ctx context.Context) error {
 		wg.Add(1)
 		go func(name string, fn func(context.Context) error) {
 			defer wg.Done()
-			db.Logger.Debug("Initializing table", zap.String("table", name))
+			db.Logger.Debug("Initializing table",
+				zap.String("table", name),
+				zap.String("database", db.Name),
+				zap.Uint64("chain_id", db.ChainID),
+			)
 			if err := fn(ctx); err != nil {
-				errChan <- fmt.Errorf("init %s: %w", name, err)
+				enhancedErr := fmt.Errorf("init table %s failed in chain database (chain_id: %d, db: %s): %w",
+					name, db.ChainID, db.Name, err)
+				errChan <- enhancedErr
 			}
 		}(op.name, op.fn)
 	}

@@ -15,13 +15,13 @@ import (
 func (db *DB) insertBlock(ctx context.Context, exec postgres.Executor, block *indexermodels.Block) error {
 	query := `
 		INSERT INTO blocks (
-			height, hash, time, network_id, parent_hash, proposer_address, size,
+			height, hash, timestamp, network_id, parent_hash, proposer_address, size,
 			num_txs, total_txs, total_vdf_iterations,
 			state_root, transaction_root, validator_root, next_validator_root
 		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
 		ON CONFLICT (height) DO UPDATE SET
 			hash = EXCLUDED.hash,
-			time = EXCLUDED.time,
+			timestamp = EXCLUDED.timestamp,
 			network_id = EXCLUDED.network_id,
 			parent_hash = EXCLUDED.parent_hash,
 			proposer_address = EXCLUDED.proposer_address,

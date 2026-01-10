@@ -2,6 +2,9 @@ package chain
 
 import (
 	"context"
+	"fmt"
+
+	"go.uber.org/zap"
 )
 
 // initBlocks creates the blocks table
@@ -10,7 +13,7 @@ func (db *DB) initBlocks(ctx context.Context) error {
 		CREATE TABLE IF NOT EXISTS blocks (
 			height BIGINT PRIMARY KEY,
 			hash TEXT NOT NULL,
-			time TIMESTAMP WITH TIME ZONE NOT NULL,
+			timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
 			network_id INTEGER NOT NULL,
 			parent_hash TEXT,
 			proposer_address TEXT,
@@ -24,12 +27,23 @@ func (db *DB) initBlocks(ctx context.Context) error {
 			next_validator_root TEXT
 		);
 
-		CREATE INDEX IF NOT EXISTS idx_blocks_time ON blocks(time);
+		CREATE INDEX IF NOT EXISTS idx_blocks_timestamp ON blocks(timestamp);
 		CREATE INDEX IF NOT EXISTS idx_blocks_network_id ON blocks(network_id);
 		CREATE INDEX IF NOT EXISTS idx_blocks_proposer ON blocks(proposer_address);
 	`
 
-	return db.Exec(ctx, query)
+	db.Logger.Debug("Executing SQL for blocks table",
+		zap.String("table", "blocks"),
+		zap.String("database", db.Name),
+		zap.Uint64("chain_id", db.ChainID),
+		zap.String("sql", query),
+	)
+
+	if err := db.Exec(ctx, query); err != nil {
+		return fmt.Errorf("create blocks table in chain database (chain_id: %d, db: %s): SQL execution failed: %w", db.ChainID, db.Name, err)
+	}
+
+	return nil
 }
 
 // initBlockSummaries creates the block_summaries table matching indexer.BlockSummary

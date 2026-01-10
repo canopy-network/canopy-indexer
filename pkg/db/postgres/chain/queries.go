@@ -12,7 +12,7 @@ import (
 // GetBlock retrieves a block by height
 func (db *DB) GetBlock(ctx context.Context, height uint64) (*indexermodels.Block, error) {
 	query := `
-		SELECT height, hash, time, network_id, parent_hash, proposer_address, size,
+		SELECT height, hash, timestamp, network_id, parent_hash, proposer_address, size,
 		       num_txs, total_txs, total_vdf_iterations, state_root, transaction_root,
 		       validator_root, next_validator_root
 		FROM blocks
@@ -37,7 +37,7 @@ func (db *DB) GetBlock(ctx context.Context, height uint64) (*indexermodels.Block
 
 // GetBlockTime retrieves the timestamp of a block
 func (db *DB) GetBlockTime(ctx context.Context, height uint64) (time.Time, error) {
-	query := `SELECT time FROM blocks WHERE height = $1`
+	query := `SELECT timestamp FROM blocks WHERE height = $1`
 
 	var blockTime time.Time
 	err := db.Client.Pool.QueryRow(ctx, query, height).Scan(&blockTime)

@@ -24,7 +24,7 @@ func (db *DB) initValidators(ctx context.Context) error {
 		);
 
 		CREATE INDEX IF NOT EXISTS idx_validators_height ON validators(height);
-		CREATE INDEX IF NOT NULL idx_validators_status ON validators(status);
+		CREATE INDEX IF NOT EXISTS idx_validators_status ON validators(status);
 	`
 
 	return db.Exec(ctx, query)

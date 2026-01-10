@@ -2,6 +2,9 @@ package crosschain
 
 import (
 	"context"
+	"fmt"
+
+	"go.uber.org/zap"
 )
 
 // initBlocks creates the blocks table
@@ -22,7 +25,17 @@ func (db *DB) initBlocks(ctx context.Context) error {
 		CREATE INDEX IF NOT EXISTS idx_blocks_time ON blocks(height_time);
 	`
 
-	return db.Exec(ctx, query)
+	db.Logger.Debug("Executing SQL for blocks table",
+		zap.String("table", "blocks"),
+		zap.String("database", db.Name),
+		zap.String("sql", query),
+	)
+
+	if err := db.Exec(ctx, query); err != nil {
+		return fmt.Errorf("create blocks table in crosschain database (db: %s): SQL execution failed: %w", db.Name, err)
+	}
+
+	return nil
 }
 
 // initBlockSummaries creates the block_summaries table
@@ -360,7 +373,17 @@ func (db *DB) initCommitteeValidators(ctx context.Context) error {
 		)
 	`
 
-	return db.Exec(ctx, query)
+	db.Logger.Debug("Executing SQL for committee_validators table",
+		zap.String("table", "committee_validators"),
+		zap.String("database", db.Name),
+		zap.String("sql", query),
+	)
+
+	if err := db.Exec(ctx, query); err != nil {
+		return fmt.Errorf("create committee_validators table in crosschain database (db: %s): SQL execution failed: %w", db.Name, err)
+	}
+
+	return nil
 }
 
 // initCommitteePayments creates the committee_payments table

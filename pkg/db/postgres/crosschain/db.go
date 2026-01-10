@@ -133,9 +133,14 @@ func (db *DB) initTables(ctx context.Context) error {
 		wg.Add(1)
 		go func(name string, fn func(context.Context) error) {
 			defer wg.Done()
-			db.Logger.Debug("Creating table", zap.String("table", name))
+			db.Logger.Debug("Creating table",
+				zap.String("table", name),
+				zap.String("database", db.Name),
+			)
 			if err := fn(ctx); err != nil {
-				errChan <- fmt.Errorf("create table %s: %w", name, err)
+				enhancedErr := fmt.Errorf("create table %s failed in crosschain database (db: %s): %w",
+					name, db.Name, err)
+				errChan <- enhancedErr
 			}
 		}(op.name, op.fn)
 	}
