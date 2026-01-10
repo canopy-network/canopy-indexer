@@ -126,6 +126,19 @@ func (idx *Indexer) IndexBlockWithData(ctx context.Context, data *blob.BlockData
 		return ErrChainNotConfigured
 	}
 
+	// Check if block already exists (deduplication on WebSocket reconnect)
+	blockExists, err := db.HasBlock(ctx, data.Height)
+	if err != nil {
+		return fmt.Errorf("check if block exists: %w", err)
+	}
+	if blockExists {
+		slog.Debug("block already indexed, skipping",
+			"chain_id", data.ChainID,
+			"height", data.Height,
+		)
+		return nil
+	}
+
 	// Log incoming blob data summary
 	slog.Info("processing blob data",
 		"chain_id", data.ChainID,
@@ -154,7 +167,7 @@ func (idx *Indexer) IndexBlockWithData(ctx context.Context, data *blob.BlockData
 	}
 
 	// Convert BlockData to internal models (includes change detection)
-	blockData := idx.convertToBlockData(data)
+	blockData := idx.convertToBlockData(data, nil)
 
 	// Transactional database writes
 	if err := idx.writeBlockData(ctx, db, blockData); err != nil {
@@ -680,29 +693,31 @@ func (idx *Indexer) buildBlockSummary(ctx context.Context, db *chain.DB, data *B
 }
 
 // convertToBlockData applies change detection and converts to internal types
-func (idx *Indexer) convertToBlockData(data *blob.BlockData) *BlockData {
+func (idx *Indexer) convertToBlockData(data *blob.BlockData, accountsPrevious []*fsm.Account) *BlockData {
 	result := &BlockData{
-		ChainID:   data.ChainID,
-		Height:    data.Height,
-		BlockTime: data.BlockTime,
+		ChainID:          data.ChainID,
+		Height:           data.Height,
+		BlockTime:        data.BlockTime,
+		AccountsPrevious: accountsPrevious,
 	}
 
 	// Simple conversions
 	result.Block = convertBlock(data.Block, data.ChainID, data.BlockTime)
 	result.Transactions = convertTransactions(data.Transactions, data.ChainID, data.Height, data.BlockTime)
 	result.Events = convertEvents(data.Events, data.ChainID, data.Height, data.BlockTime)
-	result.Accounts = convertAccounts(data.Accounts, data.Height, data.BlockTime)
+	result.Accounts = ConvertAccountsWithChangeDetection(data.Accounts, result.AccountsPrevious, data.Height, data.BlockTime)
 	result.Pools = convertPools(data.PoolsCurrent, data.PoolsPrevious, data.Height, data.BlockTime)
-	result.Orders = convertOrders(data.Orders, data.Height, data.BlockTime)
-	result.DexPrices = convertDexPrices(data.DexPrices, data.Height, data.BlockTime)
-	result.Params = convertParams(data.Params, data.Height, data.BlockTime)
-	result.Supply = convertSupply(data.Supply, data.Height, data.BlockTime)
-	result.Committees = convertCommittees(data.Committees, data.Height, data.BlockTime)
+	result.Orders = ConvertOrdersWithChangeDetection(data.Orders, nil, data.Height, data.BlockTime)
+	result.DexPrices = ConvertDexPricesWithChangeDetection(data.DexPrices, nil, data.Height, data.BlockTime)
+	result.Params = ConvertParamsWithChangeDetection(data.Params, nil, data.Height, data.BlockTime)
+	result.Supply = ConvertSupplyWithChangeDetection(data.Supply, nil, data.Height, data.BlockTime)
+	result.Committees = ConvertCommitteesWithChangeDetection(data.Committees, nil, data.Height, data.BlockTime)
 
 	// Change detection conversions
 	result.Validators, result.CommitteeValidators = ConvertValidatorsWithChangeDetection(
 		data.ValidatorsCurrent, data.ValidatorsPrevious,
 		data.Events,
+		data.SubsidizedCommittees, data.RetiredCommittees,
 		data.Height, data.BlockTime,
 	)
 	result.ValidatorNonSigningInfo = ConvertNonSignersWithChangeDetection(
