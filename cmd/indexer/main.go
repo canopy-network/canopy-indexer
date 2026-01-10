@@ -125,7 +125,12 @@ func main() {
 	}
 
 	// WebSocket Blob Mode - receives IndexerBlob instead of just height
-	if cfg.WSBlobEnabled && cfg.WSBlobURL != "" {
+	// Priority: Auto-subscribe takes precedence if enabled
+	if cfg.WSBlobAutoSubscribe {
+		// Use dynamic per-chain subscriptions (ignore WSBlobEnabled/WSBlobURL/WSBlobChainID)
+		slog.Info("blob auto-subscription enabled - will subscribe to discovered chains")
+	} else if cfg.WSBlobEnabled && cfg.WSBlobURL != "" {
+		// Fall back to legacy single-chain mode
 		chainID := cfg.WSBlobChainID
 		blobListener := listener.NewBlobListener(listener.BlobConfig{
 			URL:            cfg.WSBlobURL,

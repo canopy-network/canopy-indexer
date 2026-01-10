@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/canopy-network/canopy-indexer/internal/config"
+	"github.com/canopy-network/canopy-indexer/internal/listener"
 	"github.com/canopy-network/canopy-indexer/pkg/blob"
 	adminmodels "github.com/canopy-network/canopy-indexer/pkg/db/models/admin"
 	indexermodels "github.com/canopy-network/canopy-indexer/pkg/db/models/indexer"
@@ -16,6 +17,7 @@ import (
 	"github.com/canopy-network/canopy-indexer/pkg/db/postgres/admin"
 	"github.com/canopy-network/canopy-indexer/pkg/db/postgres/chain"
 	"github.com/canopy-network/canopy-indexer/pkg/rpc"
+	"github.com/canopy-network/canopy/fsm"
 	"github.com/jackc/pgx/v5"
 	"go.uber.org/zap"
 )
@@ -32,6 +34,10 @@ type Indexer struct {
 	logger         *zap.Logger
 	cfg            *config.Config
 	postgresClient *postgres.Client
+
+	// Blob listener management for auto-subscription
+	blobListeners       map[uint64]*listener.BlobListener // Per-chain blob listeners
+	blobListenerCancels map[uint64]context.CancelFunc     // Per-chain context cancellation
 }
 
 // New creates a new Indexer with initialized databases.
@@ -44,12 +50,14 @@ func New(ctx context.Context, logger *zap.Logger, cfg *config.Config, postgresCl
 	}
 
 	return &Indexer{
-		rpcClients:     make(map[uint64]*rpc.HTTPClient),
-		chains:         make(map[uint64]*chain.DB),
-		adminDB:        adminDB,
-		logger:         logger,
-		cfg:            cfg,
-		postgresClient: postgresClient,
+		rpcClients:          make(map[uint64]*rpc.HTTPClient),
+		chains:              make(map[uint64]*chain.DB),
+		adminDB:             adminDB,
+		logger:              logger,
+		cfg:                 cfg,
+		postgresClient:      postgresClient,
+		blobListeners:       make(map[uint64]*listener.BlobListener),
+		blobListenerCancels: make(map[uint64]context.CancelFunc),
 	}, nil
 }
 
@@ -287,6 +295,48 @@ func (idx *Indexer) addChainLocked(ctx context.Context, chainID uint64, rpcURL s
 	idx.chains[chainID] = chainDB
 	idx.rpcClients[chainID] = client
 
+	// Auto-subscribe to blob WebSocket if enabled
+	if idx.cfg.WSBlobAutoSubscribe {
+		// Create long-lived context for this listener (independent of ctx parameter)
+		listenerCtx, cancel := context.WithCancel(context.Background())
+		idx.blobListenerCancels[chainID] = cancel
+
+		blobConfig := listener.BlobConfig{
+			URL:            rpcURL, // BlobListener.buildURL() handles http→ws conversion
+			ChainID:        chainID,
+			MaxRetries:     idx.cfg.WSMaxRetries,
+			ReconnectDelay: idx.cfg.WSReconnectDelay,
+		}
+
+		// Handler closure - captures idx for IndexBlockWithData call
+		blobListener := listener.NewBlobListener(blobConfig, func(b *fsm.IndexerBlob) error {
+			blobs := &fsm.IndexerBlobs{Current: b}
+			data, err := blob.Decode(blobs, chainID)
+			if err != nil {
+				return fmt.Errorf("decode blob: %w", err)
+			}
+			// IndexBlockWithData returns ErrChainNotConfigured if chain was removed
+			return idx.IndexBlockWithData(listenerCtx, data)
+		})
+
+		idx.blobListeners[chainID] = blobListener
+
+		// Start listener in background goroutine
+		go func(chainID uint64) {
+			idx.logger.Info("starting blob listener",
+				zap.Uint64("chain_id", chainID),
+				zap.String("rpc_url", rpcURL))
+
+			if err := blobListener.Run(listenerCtx); err != nil && !errors.Is(err, context.Canceled) {
+				idx.logger.Error("blob listener failed",
+					zap.Uint64("chain_id", chainID),
+					zap.Error(err))
+			}
+
+			idx.logger.Info("blob listener stopped", zap.Uint64("chain_id", chainID))
+		}(chainID)
+	}
+
 	return nil
 }
 
@@ -298,6 +348,18 @@ func (idx *Indexer) removeChainLocked(chainID uint64) {
 	}
 
 	delete(idx.rpcClients, chainID)
+
+	// Cancel the listener's context first (signals goroutine to stop)
+	if cancel, exists := idx.blobListenerCancels[chainID]; exists {
+		cancel()
+		delete(idx.blobListenerCancels, chainID)
+	}
+
+	// Close the WebSocket connection
+	if listener, exists := idx.blobListeners[chainID]; exists {
+		listener.Close()
+		delete(idx.blobListeners, chainID)
+	}
 }
 
 // Close closes all connections and resources.
@@ -306,6 +368,21 @@ func (idx *Indexer) Close() error {
 	defer idx.mu.Unlock()
 
 	var errs []error
+
+	// Cancel all listener contexts first
+	for chainID, cancel := range idx.blobListenerCancels {
+		cancel()
+		idx.logger.Debug("cancelled blob listener context", zap.Uint64("chain_id", chainID))
+		delete(idx.blobListenerCancels, chainID)
+	}
+
+	// Close all blob listeners (closes WebSocket connections)
+	for chainID, listener := range idx.blobListeners {
+		if err := listener.Close(); err != nil {
+			errs = append(errs, fmt.Errorf("blob listener chain %d: %w", chainID, err))
+		}
+		delete(idx.blobListeners, chainID)
+	}
 
 	// Close all chain databases
 	for chainID, db := range idx.chains {

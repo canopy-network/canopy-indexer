@@ -37,9 +37,10 @@ type Config struct {
 	WSReconnectDelay time.Duration
 
 	// WebSocket Blob Mode (receives IndexerBlob instead of just height)
-	WSBlobEnabled bool
-	WSBlobURL     string
-	WSBlobChainID uint64
+	WSBlobEnabled       bool
+	WSBlobURL           string
+	WSBlobChainID       uint64
+	WSBlobAutoSubscribe bool // Enable auto-subscription for discovered chains (default: true)
 
 	// Logging
 	LogLevel string
@@ -137,6 +138,12 @@ func Load() (*Config, error) {
 		if n, err := strconv.ParseUint(v, 10, 64); err == nil {
 			cfg.WSBlobChainID = n
 		}
+	}
+
+	if v := os.Getenv("WS_BLOB_AUTO_SUBSCRIBE"); v != "" {
+		cfg.WSBlobAutoSubscribe = v == "true" || v == "1"
+	} else {
+		cfg.WSBlobAutoSubscribe = true // Default to true for auto-subscription
 	}
 
 	if v := os.Getenv("LOG_LEVEL"); v != "" {
