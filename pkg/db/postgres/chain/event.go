@@ -7,7 +7,7 @@ import (
 // initEvents creates the events table
 func (db *DB) initEvents(ctx context.Context) error {
 	query := `
-		CREATE TABLE IF NOT EXISTS events (
+		CREATE TABLE IF NOT EXISTS %s.events (
 			height BIGINT NOT NULL,
 			chain_id SMALLINT NOT NULL,
 			address TEXT NOT NULL,

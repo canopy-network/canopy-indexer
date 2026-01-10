@@ -9,7 +9,7 @@ import (
 // NOTE: Poll snapshots are time-based, not height-based
 func (db *DB) initPollSnapshots(ctx context.Context) error {
 	query := `
-		CREATE TABLE IF NOT EXISTS poll_snapshots (
+		CREATE TABLE IF NOT EXISTS %s.poll_snapshots (
 			proposal_hash TEXT NOT NULL,
 			proposal_url TEXT DEFAULT '',
 			accounts_approve_tokens BIGINT NOT NULL DEFAULT 0,
@@ -41,7 +41,7 @@ func (db *DB) initPollSnapshots(ctx context.Context) error {
 // NOTE: Proposal snapshots are time-based, not height-based
 func (db *DB) initProposalSnapshots(ctx context.Context) error {
 	query := `
-		CREATE TABLE IF NOT EXISTS proposal_snapshots (
+		CREATE TABLE IF NOT EXISTS %s.proposal_snapshots (
 			proposal_hash TEXT NOT NULL,
 			proposal TEXT NOT NULL,                        -- JSON proposal data
 			approve BOOLEAN NOT NULL DEFAULT false,

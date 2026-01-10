@@ -29,6 +29,7 @@ type Client struct {
 	Logger         *zap.Logger
 	Pool           *pgxpool.Pool
 	TargetDatabase string // Target database name
+	TargetSchema   string // Target schema name
 }
 
 // PoolConfig defines connection pool settings for a specific component
@@ -43,6 +44,7 @@ type PoolConfig struct {
 // New initializes and returns a new PostgreSQL client with provided context and logger.
 // Includes connection pooling optimizations for high-throughput workloads.
 // Accepts optional poolConfig parameter for component-specific pool sizing.
+// For schema-based access: provide database name and schema name.
 func New(ctx context.Context, logger *zap.Logger, dbName string, poolConfig ...*PoolConfig) (client Client, err error) {
 	// Add timeout to context for initial connection
 	connCtx, cancel := context.WithTimeout(ctx, 5*time.Minute)
@@ -53,7 +55,7 @@ func New(ctx context.Context, logger *zap.Logger, dbName string, poolConfig ...*
 	retryConfig := retry.DefaultConfig()
 
 	// Get database URL from environment
-	dbURL := utils.Env("POSTGRES_URL", "postgres://localhost:5432/postgres")
+	dbURL := utils.Env("CANOPY_POSTGRES_URL", "postgres://localhost:5432/indexer")
 
 	// Parse the connection string to get config
 	config, err := pgxpool.ParseConfig(dbURL)
@@ -123,48 +125,28 @@ func New(ctx context.Context, logger *zap.Logger, dbName string, poolConfig ...*
 	return client, nil
 }
 
-// CreateDbIfNotExists ensures that the specified database exists by creating it if it does not already exist.
-// After ensuring the database exists, it reconnects the pool to the target database.
-func (c *Client) CreateDbIfNotExists(ctx context.Context, dbName string) error {
-	// Check if database exists
+// CreateSchemaIfNotExists ensures that the specified schema exists by creating it if it does not already exist.
+// This is used for schema-based database organization instead of separate databases.
+func (c *Client) CreateSchemaIfNotExists(ctx context.Context, schemaName string) error {
+	// Check if schema exists
 	var exists bool
-	query := "SELECT EXISTS(SELECT 1 FROM pg_database WHERE datname = $1)"
-	err := c.Pool.QueryRow(ctx, query, dbName).Scan(&exists)
+	query := "SELECT EXISTS(SELECT 1 FROM information_schema.schemata WHERE schema_name = $1)"
+	err := c.Pool.QueryRow(ctx, query, schemaName).Scan(&exists)
 	if err != nil {
-		return fmt.Errorf("failed to check if database exists: %w", err)
+		return fmt.Errorf("failed to check if schema exists: %w", err)
 	}
 
 	if !exists {
-		// Create database
-		// Note: Cannot use parameterized query for CREATE DATABASE
-		query := fmt.Sprintf("CREATE DATABASE %s", pgx.Identifier{dbName}.Sanitize())
-		c.Logger.Info("Creating database", zap.String("database", dbName))
+		// Create schema
+		query := fmt.Sprintf("CREATE SCHEMA %s", pgx.Identifier{schemaName}.Sanitize())
+		c.Logger.Info("Creating schema", zap.String("schema", schemaName))
 		_, err = c.Pool.Exec(ctx, query)
 		if err != nil {
-			return fmt.Errorf("failed to create database: %w", err)
+			return fmt.Errorf("failed to create schema: %w", err)
 		}
 	}
 
-	// Now reconnect to the target database
-	// Get the current connection config and modify it to point to the target database
-	connConfig := c.Pool.Config().ConnConfig.Copy()
-	connConfig.Database = dbName
-
-	// Create new pool config with the target database
-	poolConfig := c.Pool.Config().Copy()
-	poolConfig.ConnConfig = connConfig
-
-	// Close the old pool and create a new one connected to the target database
-	c.Pool.Close()
-
-	newPool, err := pgxpool.NewWithConfig(ctx, poolConfig)
-	if err != nil {
-		return fmt.Errorf("failed to connect to target database %s: %w", dbName, err)
-	}
-
-	c.Pool = newPool
-	c.TargetDatabase = dbName
-
+	c.TargetSchema = schemaName
 	return nil
 }
 

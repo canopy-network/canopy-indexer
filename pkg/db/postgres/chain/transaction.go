@@ -8,7 +8,7 @@ import (
 // This matches pkg/db/models/indexer/tx.go:52-113 (33 fields)
 func (db *DB) initTransactions(ctx context.Context) error {
 	query := `
-		CREATE TABLE IF NOT EXISTS txs (
+		CREATE TABLE IF NOT EXISTS %s.txs (
 			-- Primary key fields (composite key)
 			height BIGINT NOT NULL,
 			tx_hash TEXT NOT NULL,

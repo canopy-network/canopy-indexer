@@ -12,8 +12,9 @@ import (
 
 // initChains creates the chains table using PostgreSQL DDL
 func (db *DB) initChains(ctx context.Context) error {
-	query := `
-		CREATE TABLE IF NOT EXISTS chains (
+	chainsTable := db.SchemaTable("chains")
+	query := fmt.Sprintf(`
+		CREATE TABLE IF NOT EXISTS %s (
 			chain_id BIGINT PRIMARY KEY,
 			chain_name TEXT NOT NULL,
 			rpc_endpoints TEXT[] NOT NULL DEFAULT '{}',
@@ -23,18 +24,19 @@ func (db *DB) initChains(ctx context.Context) error {
 			created_at TIMESTAMP NOT NULL DEFAULT NOW(),
 			updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 		)
-	`
+	`, chainsTable)
 
 	return db.Exec(ctx, query)
 }
 
 // GetChain returns the chain for the given chain_id
 func (db *DB) GetChain(ctx context.Context, id uint64) (*adminmodels.Chain, error) {
-	query := `
+	chainsTable := db.SchemaTable("chains")
+	query := fmt.Sprintf(`
 		SELECT chain_id, chain_name, rpc_endpoints, paused, deleted, notes, created_at, updated_at
-		FROM chains
+		FROM %s
 		WHERE chain_id = $1
-	`
+	`, chainsTable)
 
 	var chain adminmodels.Chain
 	err := db.QueryRow(ctx, query, id).Scan(
@@ -60,11 +62,12 @@ func (db *DB) GetChain(ctx context.Context, id uint64) (*adminmodels.Chain, erro
 
 // GetChainRPCEndpoints returns only the chain_id and rpc_endpoints for a chain
 func (db *DB) GetChainRPCEndpoints(ctx context.Context, chainID uint64) (*dbtypes.ChainRPCEndpoints, error) {
-	query := `
+	chainsTable := db.SchemaTable("chains")
+	query := fmt.Sprintf(`
 		SELECT chain_id, rpc_endpoints
-		FROM chains
+		FROM %s
 		WHERE chain_id = $1
-	`
+	`, chainsTable)
 
 	var result dbtypes.ChainRPCEndpoints
 	err := db.QueryRow(ctx, query, chainID).Scan(&result.ChainID, &result.RPCEndpoints)
@@ -80,10 +83,11 @@ func (db *DB) GetChainRPCEndpoints(ctx context.Context, chainID uint64) (*dbtype
 
 // ListChain returns all chains, optionally including deleted ones
 func (db *DB) ListChain(ctx context.Context, includeDeleted bool) ([]adminmodels.Chain, error) {
-	query := `
+	chainsTable := db.SchemaTable("chains")
+	query := fmt.Sprintf(`
 		SELECT chain_id, chain_name, rpc_endpoints, paused, deleted, notes, created_at, updated_at
-		FROM chains
-	`
+		FROM %s
+	`, chainsTable)
 
 	if !includeDeleted {
 		query += ` WHERE deleted = 0`
@@ -121,7 +125,8 @@ func (db *DB) ListChain(ctx context.Context, includeDeleted bool) ([]adminmodels
 
 // HardDeleteChain permanently removes a chain record from the database
 func (db *DB) HardDeleteChain(ctx context.Context, chainID uint64) error {
-	query := `DELETE FROM chains WHERE chain_id = $1`
+	chainsTable := db.SchemaTable("chains")
+	query := fmt.Sprintf(`DELETE FROM %s WHERE chain_id = $1`, chainsTable)
 	return db.Exec(ctx, query, chainID)
 }
 
@@ -137,8 +142,9 @@ func (db *DB) InsertChain(ctx context.Context, c *adminmodels.Chain) error {
 	// Always update updated_at
 	c.UpdatedAt = now
 
-	query := `
-		INSERT INTO chains (
+	chainsTable := db.SchemaTable("chains")
+	query := fmt.Sprintf(`
+		INSERT INTO %s (
 			chain_id, chain_name, rpc_endpoints, paused, deleted, notes, created_at, updated_at
 		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 		ON CONFLICT (chain_id) DO UPDATE SET
@@ -148,7 +154,7 @@ func (db *DB) InsertChain(ctx context.Context, c *adminmodels.Chain) error {
 			deleted = EXCLUDED.deleted,
 			notes = EXCLUDED.notes,
 			updated_at = EXCLUDED.updated_at
-	`
+	`, chainsTable)
 
 	return db.Exec(ctx, query,
 		c.ChainID,

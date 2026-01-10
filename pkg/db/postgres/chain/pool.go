@@ -8,7 +8,7 @@ import (
 // This matches pkg/db/models/indexer/pool.go:48-75 (14 fields)
 func (db *DB) initPools(ctx context.Context) error {
 	query := `
-		CREATE TABLE IF NOT EXISTS pools (
+		CREATE TABLE IF NOT EXISTS %s.pools (
 			pool_id INTEGER NOT NULL,                      -- UInt32 -> INTEGER
 			height BIGINT NOT NULL,
 			chain_id INTEGER NOT NULL,                    -- UInt16 -> INTEGER (renamed from pool_chain_id)
@@ -37,7 +37,7 @@ func (db *DB) initPools(ctx context.Context) error {
 // This matches pkg/db/models/indexer/pool_points.go:46-68 (9 fields)
 func (db *DB) initPoolPointsByHolder(ctx context.Context) error {
 	query := `
-		CREATE TABLE IF NOT EXISTS pool_points_by_holder (
+		CREATE TABLE IF NOT EXISTS %s.pool_points_by_holder (
 			address TEXT NOT NULL,
 			pool_id INTEGER NOT NULL,                      -- UInt32 -> INTEGER
 			height BIGINT NOT NULL,

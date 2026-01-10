@@ -43,7 +43,7 @@ func main() {
 
 	// Connect to admin database for chain discovery
 	adminPoolConfig := postgres.GetPoolConfigForComponent("admin")
-	adminDB, err := admin.NewWithPoolConfig(ctx, logger, "admin", *adminPoolConfig)
+	adminDB, err := admin.NewWithPoolConfig(ctx, logger, "indexer", *adminPoolConfig)
 	if err != nil {
 		slog.Error("failed to connect to admin database", "err", err)
 		os.Exit(1)

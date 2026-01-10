@@ -8,7 +8,7 @@ import (
 // This matches pkg/db/models/indexer/order.go:47-69 (12 fields)
 func (db *DB) initOrders(ctx context.Context) error {
 	query := `
-		CREATE TABLE IF NOT EXISTS orders (
+		CREATE TABLE IF NOT EXISTS %s.orders (
 			order_id TEXT NOT NULL,
 			height BIGINT NOT NULL,
 			height_time TIMESTAMP WITH TIME ZONE NOT NULL,

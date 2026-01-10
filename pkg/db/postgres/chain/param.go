@@ -9,7 +9,7 @@ import (
 // Only inserted when parameters change
 func (db *DB) initParams(ctx context.Context) error {
 	query := `
-		CREATE TABLE IF NOT EXISTS params (
+		CREATE TABLE IF NOT EXISTS %s.params (
 			height BIGINT PRIMARY KEY,
 			height_time TIMESTAMP WITH TIME ZONE NOT NULL,
 			block_size BIGINT NOT NULL DEFAULT 0,

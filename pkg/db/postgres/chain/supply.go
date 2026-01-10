@@ -9,7 +9,7 @@ import (
 // Only inserted when supply changes
 func (db *DB) initSupply(ctx context.Context) error {
 	query := `
-		CREATE TABLE IF NOT EXISTS supply (
+		CREATE TABLE IF NOT EXISTS %s.supply (
 			total BIGINT NOT NULL DEFAULT 0,
 			staked BIGINT NOT NULL DEFAULT 0,
 			delegated_only BIGINT NOT NULL DEFAULT 0,

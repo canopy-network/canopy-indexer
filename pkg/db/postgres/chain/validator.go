@@ -7,7 +7,7 @@ import (
 // initValidators creates the validators table
 func (db *DB) initValidators(ctx context.Context) error {
 	query := `
-		CREATE TABLE IF NOT EXISTS validators (
+		CREATE TABLE IF NOT EXISTS %s.validators (
 			address TEXT NOT NULL,
 			height BIGINT NOT NULL,
 			public_key TEXT NOT NULL,
@@ -33,7 +33,7 @@ func (db *DB) initValidators(ctx context.Context) error {
 // initValidatorNonSigningInfo creates the validator_non_signing_info table
 func (db *DB) initValidatorNonSigningInfo(ctx context.Context) error {
 	query := `
-		CREATE TABLE IF NOT EXISTS validator_non_signing_info (
+		CREATE TABLE IF NOT EXISTS %s.validator_non_signing_info (
 			address TEXT NOT NULL,
 			height BIGINT NOT NULL,
 			missed_blocks_count BIGINT NOT NULL DEFAULT 0,
@@ -51,7 +51,7 @@ func (db *DB) initValidatorNonSigningInfo(ctx context.Context) error {
 // initValidatorDoubleSigningInfo creates the validator_double_signing_info table
 func (db *DB) initValidatorDoubleSigningInfo(ctx context.Context) error {
 	query := `
-		CREATE TABLE IF NOT EXISTS validator_double_signing_info (
+		CREATE TABLE IF NOT EXISTS %s.validator_double_signing_info (
 			address TEXT NOT NULL,
 			height BIGINT NOT NULL,
 			evidence_count BIGINT NOT NULL DEFAULT 0,

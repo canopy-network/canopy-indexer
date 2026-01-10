@@ -2,12 +2,14 @@ package admin
 
 import (
 	"context"
+	"fmt"
 )
 
 // initReindexRequests creates the reindex_requests table
 func (db *DB) initReindexRequests(ctx context.Context) error {
-	query := `
-		CREATE TABLE IF NOT EXISTS reindex_requests (
+	reindexTable := db.SchemaTable("reindex_requests")
+	query := fmt.Sprintf(`
+		CREATE TABLE IF NOT EXISTS %s (
 			chain_id BIGINT NOT NULL,
 			from_height BIGINT NOT NULL,
 			to_height BIGINT NOT NULL,
@@ -18,13 +20,14 @@ func (db *DB) initReindexRequests(ctx context.Context) error {
 			error TEXT NOT NULL DEFAULT '',
 			PRIMARY KEY (chain_id, from_height, to_height)
 		)
-	`
+	`, reindexTable)
 
 	return db.Exec(ctx, query)
 }
 
 // DeleteReindexRequestsForChain deletes all reindex requests for a chain
 func (db *DB) DeleteReindexRequestsForChain(ctx context.Context, chainID uint64) error {
-	query := `DELETE FROM reindex_requests WHERE chain_id = $1`
+	reindexTable := db.SchemaTable("reindex_requests")
+	query := fmt.Sprintf(`DELETE FROM %s WHERE chain_id = $1`, reindexTable)
 	return db.Exec(ctx, query, chainID)
 }

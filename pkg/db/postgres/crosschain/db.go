@@ -13,22 +13,27 @@ import (
 // DB represents a PostgreSQL database connection for handling cross-chain operations
 type DB struct {
 	postgres.Client
-	Name string // Database name (e.g., "crosschain")
+	Name   string // Database name (e.g., "indexer")
+	Schema string // Schema name (e.g., "crosschain")
 }
 
 // NewWithPoolConfig creates and initializes a crosschain database instance with custom pool configuration
-func NewWithPoolConfig(ctx context.Context, logger *zap.Logger, name string, poolConfig postgres.PoolConfig) (*DB, error) {
+func NewWithPoolConfig(ctx context.Context, logger *zap.Logger, databaseName string, poolConfig postgres.PoolConfig) (*DB, error) {
+	schemaName := "crosschain"
+
 	client, err := postgres.New(ctx, logger.With(
-		zap.String("db", name),
+		zap.String("db", databaseName),
+		zap.String("schema", schemaName),
 		zap.String("component", poolConfig.Component),
-	), name, &poolConfig)
+	), databaseName, &poolConfig)
 	if err != nil {
 		return nil, err
 	}
 
 	crosschainDB := &DB{
 		Client: client,
-		Name:   name,
+		Name:   databaseName,
+		Schema: schemaName,
 	}
 
 	if err := crosschainDB.InitializeDB(ctx); err != nil {
@@ -54,17 +59,24 @@ func (db *DB) DatabaseName() string {
 	return db.Name
 }
 
+// SchemaTable returns a schema-qualified table name
+func (db *DB) SchemaTable(tableName string) string {
+	return fmt.Sprintf("%s.%s", db.Schema, tableName)
+}
+
 // InitializeDB ensures the required database and tables exist
 // Creates all tables, enums, views, and functions in parallel where possible
 func (db *DB) InitializeDB(ctx context.Context) error {
 	initStart := time.Now()
 
-	db.Logger.Info("Initializing crosschain database", zap.String("database", db.Name))
+	db.Logger.Info("Initializing crosschain database",
+		zap.String("database", db.Name),
+		zap.String("schema", db.Schema))
 
-	if err := db.CreateDbIfNotExists(ctx, db.Name); err != nil {
-		return fmt.Errorf("failed to create database %s: %w", db.Name, err)
+	if err := db.CreateSchemaIfNotExists(ctx, db.Schema); err != nil {
+		return fmt.Errorf("failed to create schema %s: %w", db.Schema, err)
 	}
-	db.Logger.Info("Database created successfully", zap.String("database", db.Name))
+	db.Logger.Info("Schema created successfully", zap.String("schema", db.Schema))
 
 	// Step 1: Create enums (must be done before tables that use them)
 	db.Logger.Info("Creating enums")

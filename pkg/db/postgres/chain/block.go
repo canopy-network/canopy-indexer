@@ -9,8 +9,9 @@ import (
 
 // initBlocks creates the blocks table
 func (db *DB) initBlocks(ctx context.Context) error {
-	query := `
-		CREATE TABLE IF NOT EXISTS blocks (
+	blocksTable := db.SchemaTable("blocks")
+	query := fmt.Sprintf(`
+		CREATE TABLE IF NOT EXISTS %s (
 			height BIGINT PRIMARY KEY,
 			hash TEXT NOT NULL,
 			timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
@@ -27,20 +28,21 @@ func (db *DB) initBlocks(ctx context.Context) error {
 			next_validator_root TEXT
 		);
 
-		CREATE INDEX IF NOT EXISTS idx_blocks_timestamp ON blocks(timestamp);
-		CREATE INDEX IF NOT EXISTS idx_blocks_network_id ON blocks(network_id);
-		CREATE INDEX IF NOT EXISTS idx_blocks_proposer ON blocks(proposer_address);
-	`
+		CREATE INDEX IF NOT EXISTS idx_blocks_timestamp ON %s(timestamp);
+		CREATE INDEX IF NOT EXISTS idx_blocks_network_id ON %s(network_id);
+		CREATE INDEX IF NOT EXISTS idx_blocks_proposer ON %s(proposer_address);
+	`, blocksTable, blocksTable, blocksTable, blocksTable)
 
 	db.Logger.Debug("Executing SQL for blocks table",
-		zap.String("table", "blocks"),
+		zap.String("table", blocksTable),
 		zap.String("database", db.Name),
+		zap.String("schema", db.Schema),
 		zap.Uint64("chain_id", db.ChainID),
 		zap.String("sql", query),
 	)
 
 	if err := db.Exec(ctx, query); err != nil {
-		return fmt.Errorf("create blocks table in chain database (chain_id: %d, db: %s): SQL execution failed: %w", db.ChainID, db.Name, err)
+		return fmt.Errorf("create blocks table in chain database (chain_id: %d, db: %s, schema: %s): SQL execution failed: %w", db.ChainID, db.Name, db.Schema, err)
 	}
 
 	return nil
@@ -50,7 +52,7 @@ func (db *DB) initBlocks(ctx context.Context) error {
 // This matches pkg/db/models/indexer/block_summary.go:119-241 (90+ fields)
 func (db *DB) initBlockSummaries(ctx context.Context) error {
 	query := `
-		CREATE TABLE IF NOT EXISTS block_summaries (
+		CREATE TABLE IF NOT EXISTS %s.block_summaries (
 			-- Block metadata
 			height BIGINT PRIMARY KEY,
 			height_time TIMESTAMP WITH TIME ZONE NOT NULL,

@@ -8,7 +8,7 @@ import (
 // This matches pkg/db/models/indexer/dex_order.go:53-80 (13 fields)
 func (db *DB) initDexOrders(ctx context.Context) error {
 	query := `
-		CREATE TABLE IF NOT EXISTS dex_orders (
+		CREATE TABLE IF NOT EXISTS %s.dex_orders (
 			order_id TEXT NOT NULL,
 			height BIGINT NOT NULL,
 			height_time TIMESTAMP WITH TIME ZONE NOT NULL,
@@ -38,7 +38,7 @@ func (db *DB) initDexOrders(ctx context.Context) error {
 // This matches pkg/db/models/indexer/dex_deposit.go:41-62 (9 fields)
 func (db *DB) initDexDeposits(ctx context.Context) error {
 	query := `
-		CREATE TABLE IF NOT EXISTS dex_deposits (
+		CREATE TABLE IF NOT EXISTS %s.dex_deposits (
 			order_id TEXT NOT NULL,
 			height BIGINT NOT NULL,
 			height_time TIMESTAMP WITH TIME ZONE NOT NULL,
@@ -63,7 +63,7 @@ func (db *DB) initDexDeposits(ctx context.Context) error {
 // This matches pkg/db/models/indexer/dex_withdrawal.go:42-64 (10 fields)
 func (db *DB) initDexWithdrawals(ctx context.Context) error {
 	query := `
-		CREATE TABLE IF NOT EXISTS dex_withdrawals (
+		CREATE TABLE IF NOT EXISTS %s.dex_withdrawals (
 			order_id TEXT NOT NULL,
 			height BIGINT NOT NULL,
 			height_time TIMESTAMP WITH TIME ZONE NOT NULL,
@@ -89,7 +89,7 @@ func (db *DB) initDexWithdrawals(ctx context.Context) error {
 // This matches pkg/db/models/indexer/dexprice.go:30-50 (10 fields)
 func (db *DB) initDexPrices(ctx context.Context) error {
 	query := `
-		CREATE TABLE IF NOT EXISTS dex_prices (
+		CREATE TABLE IF NOT EXISTS %s.dex_prices (
 			local_chain_id SMALLINT NOT NULL,             -- UInt16 -> SMALLINT
 			remote_chain_id SMALLINT NOT NULL,            -- UInt16 -> SMALLINT
 			height BIGINT NOT NULL,

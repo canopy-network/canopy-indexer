@@ -13,26 +13,30 @@ import (
 // DB represents a PostgreSQL database connection for handling chain operations
 type DB struct {
 	postgres.Client
-	Name    string // Database name (e.g., "chain_1")
+	Name    string // Database name (e.g., "indexer")
+	Schema  string // Schema name (e.g., "chain_1")
 	ChainID uint64
 }
 
 // NewWithPoolConfig creates and initializes a chain database instance with custom pool configuration
 func NewWithPoolConfig(ctx context.Context, logger *zap.Logger, chainID uint64, poolConfig postgres.PoolConfig) (*DB, error) {
-	name := postgres.SanitizeName(fmt.Sprintf("chain_%d", chainID))
+	databaseName := "indexer"
+	schemaName := postgres.SanitizeName(fmt.Sprintf("chain_%d", chainID))
 
 	client, err := postgres.New(ctx, logger.With(
-		zap.String("db", name),
+		zap.String("db", databaseName),
+		zap.String("schema", schemaName),
 		zap.Uint64("chain_id", chainID),
 		zap.String("component", poolConfig.Component),
-	), name, &poolConfig)
+	), databaseName, &poolConfig)
 	if err != nil {
 		return nil, err
 	}
 
 	chainDB := &DB{
 		Client:  client,
-		Name:    name,
+		Name:    databaseName,
+		Schema:  schemaName,
 		ChainID: chainID,
 	}
 
@@ -64,6 +68,11 @@ func (db *DB) ChainKey() string {
 	return fmt.Sprintf("%d", db.ChainID)
 }
 
+// SchemaTable returns a schema-qualified table name
+func (db *DB) SchemaTable(tableName string) string {
+	return fmt.Sprintf("%s.%s", db.Schema, tableName)
+}
+
 // InitializeDB ensures the required database and tables exist
 // Creates all tables in parallel for efficiency
 func (db *DB) InitializeDB(ctx context.Context) error {
@@ -71,12 +80,13 @@ func (db *DB) InitializeDB(ctx context.Context) error {
 
 	db.Logger.Info("Initializing chain database",
 		zap.String("database", db.Name),
+		zap.String("schema", db.Schema),
 		zap.Uint64("chain_id", db.ChainID))
 
-	if err := db.CreateDbIfNotExists(ctx, db.Name); err != nil {
-		return fmt.Errorf("failed to create database %s: %w", db.Name, err)
+	if err := db.CreateSchemaIfNotExists(ctx, db.Schema); err != nil {
+		return fmt.Errorf("failed to create schema %s: %w", db.Schema, err)
 	}
-	db.Logger.Info("Database created successfully", zap.String("database", db.Name))
+	db.Logger.Info("Schema created successfully", zap.String("schema", db.Schema))
 
 	// Create all tables in parallel (no staging tables for Postgres)
 	initOps := []struct {
