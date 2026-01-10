@@ -17,6 +17,7 @@ import (
 	"github.com/canopy-network/canopy-indexer/pkg/db/postgres"
 	"github.com/canopy-network/canopy-indexer/pkg/db/postgres/admin"
 	"github.com/canopy-network/canopy-indexer/pkg/db/postgres/chain"
+	"github.com/canopy-network/canopy-indexer/pkg/db/postgres/crosschain"
 	"github.com/canopy-network/canopy-indexer/pkg/rpc"
 	"github.com/canopy-network/canopy/fsm"
 	"github.com/jackc/pgx/v5"
@@ -32,6 +33,7 @@ type Indexer struct {
 	rpcClients     map[uint64]*rpc.HTTPClient
 	chains         map[uint64]*chain.DB // Per-chain databases
 	adminDB        *admin.DB            // Admin database for index progress
+	crosschainDB   *crosschain.DB       // Cross-chain database for global crosschain tables
 	logger         *zap.Logger
 	cfg            *config.Config
 	postgresClient *postgres.Client
@@ -51,10 +53,18 @@ func New(ctx context.Context, logger *zap.Logger, cfg *config.Config, postgresCl
 		return nil, fmt.Errorf("create admin db: %w", err)
 	}
 
+	// Initialize crosschain DB for global crosschain tables
+	crosschainDB, err := crosschain.NewWithPoolConfig(ctx, logger, "indexer",
+		*postgres.GetPoolConfigForComponent("crosschain"))
+	if err != nil {
+		return nil, fmt.Errorf("create crosschain db: %w", err)
+	}
+
 	return &Indexer{
 		rpcClients:          make(map[uint64]*rpc.HTTPClient),
 		chains:              make(map[uint64]*chain.DB),
 		adminDB:             adminDB,
+		crosschainDB:        crosschainDB,
 		logger:              logger,
 		cfg:                 cfg,
 		postgresClient:      postgresClient,
@@ -235,6 +245,10 @@ func (idx *Indexer) AddChain(ctx context.Context, chainID uint64, rpcURL string)
 	idx.chains[chainID] = chainDB
 	idx.rpcClients[chainID] = client
 
+	if err := idx.crosschainDB.SetupChainSync(ctx, chainID); err != nil {
+		return fmt.Errorf("setup crosschain sync: %w", err)
+	}
+
 	return nil
 }
 
@@ -349,6 +363,12 @@ func (idx *Indexer) addChainLocked(ctx context.Context, chainID uint64, rpcURL s
 	idx.chains[chainID] = chainDB
 	idx.rpcClients[chainID] = client
 
+	if err := idx.crosschainDB.SetupChainSync(ctx, chainID); err != nil {
+		idx.logger.Error("failed to setup crosschain sync",
+			zap.Uint64("chain_id", chainID),
+			zap.Error(err))
+	}
+
 	// Auto-subscribe to blob WebSocket if enabled
 	if idx.cfg.WSBlobAutoSubscribe {
 		// Create long-lived context for this listener (independent of ctx parameter)
@@ -414,6 +434,13 @@ func (idx *Indexer) removeChainLocked(chainID uint64) {
 		listener.Close()
 		delete(idx.blobListeners, chainID)
 	}
+
+	// Remove crosschain sync
+	if err := idx.crosschainDB.RemoveChainSync(context.Background(), chainID); err != nil {
+		idx.logger.Warn("failed to remove crosschain sync",
+			zap.Uint64("chain_id", chainID),
+			zap.Error(err))
+	}
 }
 
 // Close closes all connections and resources.
@@ -449,6 +476,11 @@ func (idx *Indexer) Close() error {
 	// Close admin DB
 	if err := idx.adminDB.Close(); err != nil {
 		errs = append(errs, fmt.Errorf("admin db: %w", err))
+	}
+
+	// Close crosschain DB
+	if err := idx.crosschainDB.Close(); err != nil {
+		errs = append(errs, fmt.Errorf("crosschain db: %w", err))
 	}
 
 	return errors.Join(errs...)
