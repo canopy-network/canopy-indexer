@@ -93,7 +93,7 @@ show-stats:
 
 # Run backfill (index all missing blocks)
 backfill: build-backfill
-	./bin/backfill
+	./bin/backfill -once
 
 # Show gap statistics only (no indexing)
 backfill-stats: build-backfill

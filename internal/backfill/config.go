@@ -27,6 +27,9 @@ type Config struct {
 	// ProgressInterval is how often to log progress.
 	ProgressInterval time.Duration
 
+	// GapCheckInterval is how often to check for gaps in worker mode.
+	GapCheckInterval time.Duration
+
 	// UseBlobs enables blob-based fetching (single RPC call per block).
 	UseBlobs bool
 }
@@ -40,6 +43,7 @@ func DefaultConfig() *Config {
 		EndHeight:        0,
 		DryRun:           false,
 		ProgressInterval: 10 * time.Second,
+		GapCheckInterval: 5 * time.Minute,
 	}
 }
 
@@ -78,6 +82,12 @@ func LoadConfig() *Config {
 	if v := os.Getenv("BACKFILL_PROGRESS_INTERVAL"); v != "" {
 		if d, err := time.ParseDuration(v); err == nil {
 			cfg.ProgressInterval = d
+		}
+	}
+
+	if v := os.Getenv("BACKFILL_GAP_CHECK_INTERVAL"); v != "" {
+		if d, err := time.ParseDuration(v); err == nil {
+			cfg.GapCheckInterval = d
 		}
 	}
 

@@ -8,9 +8,11 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/canopy-network/canopy-indexer/internal/config"
 	"github.com/canopy-network/canopy-indexer/internal/indexer"
 	"github.com/canopy-network/canopy-indexer/pkg/blob"
 	"github.com/canopy-network/canopy-indexer/pkg/db/postgres"
+	"github.com/canopy-network/canopy-indexer/pkg/db/postgres/admin"
 	"github.com/canopy-network/canopy-indexer/pkg/rpc"
 	"golang.org/x/sync/errgroup"
 )
@@ -275,4 +277,66 @@ func (b *Backfiller) CheckHealth(ctx context.Context) (*GapStats, error) {
 	}
 
 	return GetGapStats(ctx, b.db, b.chainID, startHeight, endHeight)
+}
+
+// DiscoverActiveChains fetches active chains from the admin database.
+func DiscoverActiveChains(ctx context.Context, adminDB *admin.DB) ([]config.ChainConfig, error) {
+	adminChains, err := adminDB.ListChain(ctx, false)
+	if err != nil {
+		return nil, fmt.Errorf("list chains: %w", err)
+	}
+
+	var chains []config.ChainConfig
+	for _, chain := range adminChains {
+		if chain.Deleted == 0 && chain.Paused == 0 && len(chain.RPCEndpoints) > 0 {
+			chains = append(chains, config.ChainConfig{
+				ChainID: chain.ChainID,
+				RPCURL:  chain.RPCEndpoints[0],
+			})
+		}
+	}
+	return chains, nil
+}
+
+// RunContinuous runs the backfill operation continuously, checking for gaps periodically.
+func (b *Backfiller) RunContinuous(ctx context.Context) error {
+	ticker := time.NewTicker(b.config.GapCheckInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-ticker.C:
+			stats, err := b.CheckHealth(ctx)
+			if err != nil {
+				slog.Error("failed to check health", "chain_id", b.chainID, "err", err)
+				continue
+			}
+
+			if stats.TotalMissing > 0 {
+				slog.Info("gaps found, starting backfill",
+					"chain_id", b.chainID,
+					"total_missing", stats.TotalMissing,
+					"first_missing", stats.FirstMissing,
+					"last_missing", stats.LastMissing,
+				)
+
+				result, err := b.Run(ctx)
+				if err != nil && ctx.Err() == nil {
+					slog.Error("continuous backfill failed", "chain_id", b.chainID, "err", err)
+				} else if result != nil {
+					slog.Info("continuous backfill completed",
+						"chain_id", b.chainID,
+						"processed", result.TotalProcessed,
+						"succeeded", result.TotalSucceeded,
+						"failed", result.TotalFailed,
+						"duration", result.Duration,
+					)
+				}
+			} else {
+				slog.Debug("no gaps found", "chain_id", b.chainID)
+			}
+		}
+	}
 }

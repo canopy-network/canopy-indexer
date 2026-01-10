@@ -9,6 +9,7 @@ import (
 	"os/signal"
 	"sync"
 	"syscall"
+	"time"
 
 	"github.com/canopy-network/canopy-indexer/internal/backfill"
 	"github.com/canopy-network/canopy-indexer/internal/config"
@@ -28,6 +29,7 @@ func main() {
 	concurrency := flag.Int("concurrency", 0, "Number of concurrent workers (default: 10)")
 	statsOnly := flag.Bool("stats", false, "Only show gap statistics")
 	chainID := flag.Uint64("chain", 0, "Specific chain ID to backfill (default: all chains)")
+	onceMode := flag.Bool("once", false, "Run in one-time mode (backfill and exit)")
 	flag.Parse()
 
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
@@ -160,6 +162,15 @@ func main() {
 		backfillCfg.Concurrency = *concurrency
 	}
 
+	if *onceMode {
+		// One-time mode: backfill and exit
+		runOnceMode(ctx, chainsToBackfill, rpcClients, &client, idx, backfillCfg)
+		return
+	}
+
+	// Worker mode: continuous backfilling
+	runWorkerMode(ctx, adminDB, chainsToBackfill, rpcClients, &client, idx, backfillCfg, *chainID)
+
 	// Stats only mode
 	if *statsOnly {
 		for _, chain := range chainsToBackfill {
@@ -188,6 +199,10 @@ func main() {
 		os.Exit(0)
 	}
 
+	runOnceMode(ctx, chainsToBackfill, rpcClients, &client, idx, backfillCfg)
+}
+
+func runOnceMode(ctx context.Context, chainsToBackfill []config.ChainConfig, rpcClients map[uint64]*rpc.HTTPClient, client *postgres.Client, idx *indexer.Indexer, backfillCfg *backfill.Config) {
 	// Run backfill for all chains concurrently
 	var wg sync.WaitGroup
 	results := make(map[uint64]*backfill.Result)
@@ -199,7 +214,7 @@ func main() {
 			defer wg.Done()
 
 			rpcClient := rpcClients[chain.ChainID]
-			bf := backfill.New(rpcClient, &client, idx, chain.ChainID, backfillCfg)
+			bf := backfill.New(rpcClient, client, idx, chain.ChainID, backfillCfg)
 
 			result, err := bf.Run(ctx)
 			if err != nil && ctx.Err() == nil {
@@ -257,6 +272,119 @@ func main() {
 	}
 
 	slog.Info("backfill complete")
+}
+
+func runWorkerMode(ctx context.Context, adminDB *admin.DB, initialChains []config.ChainConfig, rpcClients map[uint64]*rpc.HTTPClient, client *postgres.Client, idx *indexer.Indexer, backfillCfg *backfill.Config, restrictChainID uint64) {
+	slog.Info("starting backfill worker mode")
+
+	// Map of active backfill goroutines per chain
+	activeBackfills := make(map[uint64]context.CancelFunc)
+	var mu sync.Mutex
+
+	// Function to start backfill for a chain
+	startBackfill := func(chain config.ChainConfig) {
+		mu.Lock()
+		if _, exists := activeBackfills[chain.ChainID]; exists {
+			mu.Unlock()
+			return // Already running
+		}
+		mu.Unlock()
+
+		// Create RPC client if not exists
+		rpcClient, exists := rpcClients[chain.ChainID]
+		if !exists {
+			rpcClient = rpc.NewHTTPWithOpts(rpc.Opts{
+				Endpoints: []string{chain.RPCURL},
+			})
+			rpcClients[chain.ChainID] = rpcClient
+		}
+
+		// Ensure chain is added to indexer
+		if err := idx.AddChain(ctx, chain.ChainID, chain.RPCURL); err != nil {
+			slog.Error("failed to add chain to indexer", "chain_id", chain.ChainID, "err", err)
+			return
+		}
+
+		// Start backfill in goroutine
+		backfillCtx, cancel := context.WithCancel(ctx)
+		mu.Lock()
+		activeBackfills[chain.ChainID] = cancel
+		mu.Unlock()
+
+		go func(chainID uint64) {
+			defer func() {
+				mu.Lock()
+				delete(activeBackfills, chainID)
+				mu.Unlock()
+			}()
+
+			bf := backfill.New(rpcClient, client, idx, chainID, backfillCfg)
+			if err := bf.RunContinuous(backfillCtx); err != nil && backfillCtx.Err() == nil {
+				slog.Error("continuous backfill error", "chain_id", chainID, "err", err)
+			}
+		}(chain.ChainID)
+
+		slog.Info("started continuous backfill", "chain_id", chain.ChainID)
+	}
+
+	// Start initial chains
+	for _, chain := range initialChains {
+		if restrictChainID == 0 || chain.ChainID == restrictChainID {
+			startBackfill(chain)
+		}
+	}
+
+	// Polling loop for chain rediscovery
+	ticker := time.NewTicker(5 * time.Minute) // Use ChainRediscoveryInterval if available
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			// Stop all active backfills
+			mu.Lock()
+			for chainID, cancel := range activeBackfills {
+				cancel()
+				slog.Info("stopping backfill on shutdown", "chain_id", chainID)
+			}
+			mu.Unlock()
+			return
+		case <-ticker.C:
+			chains, err := backfill.DiscoverActiveChains(ctx, adminDB)
+			if err != nil {
+				slog.Error("failed to discover chains", "err", err)
+				continue
+			}
+
+			// Build set of active chain IDs
+			activeChainIDs := make(map[uint64]bool)
+			for _, chain := range chains {
+				if restrictChainID == 0 || chain.ChainID == restrictChainID {
+					activeChainIDs[chain.ChainID] = true
+				}
+			}
+
+			// Start new chains
+			for _, chain := range chains {
+				if activeChainIDs[chain.ChainID] {
+					startBackfill(chain)
+				}
+			}
+
+			// Stop removed chains
+			mu.Lock()
+			for chainID := range activeBackfills {
+				if !activeChainIDs[chainID] {
+					if cancel, exists := activeBackfills[chainID]; exists {
+						cancel()
+						delete(activeBackfills, chainID)
+						slog.Info("stopped backfill for removed chain", "chain_id", chainID)
+					}
+				}
+			}
+			mu.Unlock()
+		}
+	}
 }
 
 func setupLogging(level string) {
