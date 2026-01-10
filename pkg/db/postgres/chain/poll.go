@@ -2,14 +2,16 @@ package chain
 
 import (
 	"context"
+	"fmt"
 )
 
 // initPollSnapshots creates the poll_snapshots table matching indexer.PollSnapshot
 // This matches pkg/db/models/indexer/poll_snapshot.go:47-76 (17 fields)
 // NOTE: Poll snapshots are time-based, not height-based
 func (db *DB) initPollSnapshots(ctx context.Context) error {
-	query := `
-		CREATE TABLE IF NOT EXISTS %s.poll_snapshots (
+	pollSnapshotsTable := db.SchemaTable("poll_snapshots")
+	query := fmt.Sprintf(`
+		CREATE TABLE IF NOT EXISTS %s (
 			proposal_hash TEXT NOT NULL,
 			proposal_url TEXT DEFAULT '',
 			accounts_approve_tokens BIGINT NOT NULL DEFAULT 0,
@@ -30,8 +32,8 @@ func (db *DB) initPollSnapshots(ctx context.Context) error {
 			PRIMARY KEY (proposal_hash, snapshot_time)
 		);
 
-		CREATE INDEX IF NOT EXISTS idx_poll_snapshots_time ON poll_snapshots(snapshot_time);
-	`
+		CREATE INDEX IF NOT EXISTS idx_poll_snapshots_time ON %s(snapshot_time);
+	`, pollSnapshotsTable, pollSnapshotsTable)
 
 	return db.Exec(ctx, query)
 }
@@ -40,8 +42,9 @@ func (db *DB) initPollSnapshots(ctx context.Context) error {
 // This matches pkg/db/models/indexer/proposal_snapshot.go:50-76 (13 fields)
 // NOTE: Proposal snapshots are time-based, not height-based
 func (db *DB) initProposalSnapshots(ctx context.Context) error {
-	query := `
-		CREATE TABLE IF NOT EXISTS %s.proposal_snapshots (
+	proposalSnapshotsTable := db.SchemaTable("proposal_snapshots")
+	query := fmt.Sprintf(`
+		CREATE TABLE IF NOT EXISTS %s (
 			proposal_hash TEXT NOT NULL,
 			proposal TEXT NOT NULL,                        -- JSON proposal data
 			approve BOOLEAN NOT NULL DEFAULT false,
@@ -58,10 +61,10 @@ func (db *DB) initProposalSnapshots(ctx context.Context) error {
 			PRIMARY KEY (proposal_hash, snapshot_time)
 		);
 
-		CREATE INDEX IF NOT EXISTS idx_proposal_snapshots_time ON proposal_snapshots(snapshot_time);
-		CREATE INDEX IF NOT EXISTS idx_proposal_snapshots_type ON proposal_snapshots(proposal_type);
-		CREATE INDEX IF NOT EXISTS idx_proposal_snapshots_signer ON proposal_snapshots(signer);
-	`
+		CREATE INDEX IF NOT EXISTS idx_proposal_snapshots_time ON %s(snapshot_time);
+		CREATE INDEX IF NOT EXISTS idx_proposal_snapshots_type ON %s(proposal_type);
+		CREATE INDEX IF NOT EXISTS idx_proposal_snapshots_signer ON %s(signer);
+	`, proposalSnapshotsTable, proposalSnapshotsTable, proposalSnapshotsTable, proposalSnapshotsTable)
 
 	return db.Exec(ctx, query)
 }

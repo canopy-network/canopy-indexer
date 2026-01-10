@@ -2,13 +2,15 @@ package chain
 
 import (
 	"context"
+	"fmt"
 )
 
 // initDexOrders creates the dex_orders table matching indexer.DexOrder
 // This matches pkg/db/models/indexer/dex_order.go:53-80 (13 fields)
 func (db *DB) initDexOrders(ctx context.Context) error {
-	query := `
-		CREATE TABLE IF NOT EXISTS %s.dex_orders (
+	dexOrdersTable := db.SchemaTable("dex_orders")
+	query := fmt.Sprintf(`
+		CREATE TABLE IF NOT EXISTS %s (
 			order_id TEXT NOT NULL,
 			height BIGINT NOT NULL,
 			height_time TIMESTAMP WITH TIME ZONE NOT NULL,
@@ -25,11 +27,11 @@ func (db *DB) initDexOrders(ctx context.Context) error {
 			PRIMARY KEY (order_id, height)
 		);
 
-		CREATE INDEX IF NOT EXISTS idx_dex_orders_height ON dex_orders(height);
-		CREATE INDEX IF NOT EXISTS idx_dex_orders_address ON dex_orders(address);
-		CREATE INDEX IF NOT EXISTS idx_dex_orders_state ON dex_orders(state);
-		CREATE INDEX IF NOT EXISTS idx_dex_orders_committee ON dex_orders(committee);
-	`
+		CREATE INDEX IF NOT EXISTS idx_dex_orders_height ON %s(height);
+		CREATE INDEX IF NOT EXISTS idx_dex_orders_address ON %s(address);
+		CREATE INDEX IF NOT EXISTS idx_dex_orders_state ON %s(state);
+		CREATE INDEX IF NOT EXISTS idx_dex_orders_committee ON %s(committee);
+	`, dexOrdersTable, dexOrdersTable, dexOrdersTable, dexOrdersTable, dexOrdersTable)
 
 	return db.Exec(ctx, query)
 }
@@ -37,8 +39,9 @@ func (db *DB) initDexOrders(ctx context.Context) error {
 // initDexDeposits creates the dex_deposits table matching indexer.DexDeposit
 // This matches pkg/db/models/indexer/dex_deposit.go:41-62 (9 fields)
 func (db *DB) initDexDeposits(ctx context.Context) error {
-	query := `
-		CREATE TABLE IF NOT EXISTS %s.dex_deposits (
+	dexDepositsTable := db.SchemaTable("dex_deposits")
+	query := fmt.Sprintf(`
+		CREATE TABLE IF NOT EXISTS %s (
 			order_id TEXT NOT NULL,
 			height BIGINT NOT NULL,
 			height_time TIMESTAMP WITH TIME ZONE NOT NULL,
@@ -51,10 +54,10 @@ func (db *DB) initDexDeposits(ctx context.Context) error {
 			PRIMARY KEY (order_id, height)
 		);
 
-		CREATE INDEX IF NOT EXISTS idx_dex_deposits_height ON dex_deposits(height);
-		CREATE INDEX IF NOT EXISTS idx_dex_deposits_address ON dex_deposits(address);
-		CREATE INDEX IF NOT EXISTS idx_dex_deposits_state ON dex_deposits(state);
-	`
+		CREATE INDEX IF NOT EXISTS idx_dex_deposits_height ON %s(height);
+		CREATE INDEX IF NOT EXISTS idx_dex_deposits_address ON %s(address);
+		CREATE INDEX IF NOT EXISTS idx_dex_deposits_state ON %s(state);
+	`, dexDepositsTable, dexDepositsTable, dexDepositsTable, dexDepositsTable)
 
 	return db.Exec(ctx, query)
 }
@@ -62,8 +65,9 @@ func (db *DB) initDexDeposits(ctx context.Context) error {
 // initDexWithdrawals creates the dex_withdrawals table matching indexer.DexWithdrawal
 // This matches pkg/db/models/indexer/dex_withdrawal.go:42-64 (10 fields)
 func (db *DB) initDexWithdrawals(ctx context.Context) error {
-	query := `
-		CREATE TABLE IF NOT EXISTS %s.dex_withdrawals (
+	dexWithdrawalsTable := db.SchemaTable("dex_withdrawals")
+	query := fmt.Sprintf(`
+		CREATE TABLE IF NOT EXISTS %s (
 			order_id TEXT NOT NULL,
 			height BIGINT NOT NULL,
 			height_time TIMESTAMP WITH TIME ZONE NOT NULL,
@@ -77,10 +81,10 @@ func (db *DB) initDexWithdrawals(ctx context.Context) error {
 			PRIMARY KEY (order_id, height)
 		);
 
-		CREATE INDEX IF NOT EXISTS idx_dex_withdrawals_height ON dex_withdrawals(height);
-		CREATE INDEX IF NOT EXISTS idx_dex_withdrawals_address ON dex_withdrawals(address);
-		CREATE INDEX IF NOT EXISTS idx_dex_withdrawals_state ON dex_withdrawals(state);
-	`
+		CREATE INDEX IF NOT EXISTS idx_dex_withdrawals_height ON %s(height);
+		CREATE INDEX IF NOT EXISTS idx_dex_withdrawals_address ON %s(address);
+		CREATE INDEX IF NOT EXISTS idx_dex_withdrawals_state ON %s(state);
+	`, dexWithdrawalsTable, dexWithdrawalsTable, dexWithdrawalsTable, dexWithdrawalsTable)
 
 	return db.Exec(ctx, query)
 }
@@ -88,8 +92,9 @@ func (db *DB) initDexWithdrawals(ctx context.Context) error {
 // initDexPrices creates the dex_prices table matching indexer.DexPrice
 // This matches pkg/db/models/indexer/dexprice.go:30-50 (10 fields)
 func (db *DB) initDexPrices(ctx context.Context) error {
-	query := `
-		CREATE TABLE IF NOT EXISTS %s.dex_prices (
+	dexPricesTable := db.SchemaTable("dex_prices")
+	query := fmt.Sprintf(`
+		CREATE TABLE IF NOT EXISTS %s (
 			local_chain_id SMALLINT NOT NULL,             -- UInt16 -> SMALLINT
 			remote_chain_id SMALLINT NOT NULL,            -- UInt16 -> SMALLINT
 			height BIGINT NOT NULL,
@@ -103,9 +108,9 @@ func (db *DB) initDexPrices(ctx context.Context) error {
 			PRIMARY KEY (local_chain_id, remote_chain_id, height)
 		);
 
-		CREATE INDEX IF NOT EXISTS idx_dex_prices_height ON dex_prices(height);
-		CREATE INDEX IF NOT EXISTS idx_dex_prices_time ON dex_prices(height_time);
-	`
+		CREATE INDEX IF NOT EXISTS idx_dex_prices_height ON %s(height);
+		CREATE INDEX IF NOT EXISTS idx_dex_prices_time ON %s(height_time);
+	`, dexPricesTable, dexPricesTable, dexPricesTable)
 
 	return db.Exec(ctx, query)
 }

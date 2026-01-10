@@ -2,13 +2,15 @@ package chain
 
 import (
 	"context"
+	"fmt"
 )
 
 // initTransactions creates the txs table matching the Transaction model
 // This matches pkg/db/models/indexer/tx.go:52-113 (33 fields)
 func (db *DB) initTransactions(ctx context.Context) error {
-	query := `
-		CREATE TABLE IF NOT EXISTS %s.txs (
+	txsTable := db.SchemaTable("txs")
+	query := fmt.Sprintf(`
+		CREATE TABLE IF NOT EXISTS %s (
 			-- Primary key fields (composite key)
 			height BIGINT NOT NULL,
 			tx_hash TEXT NOT NULL,
@@ -69,14 +71,14 @@ func (db *DB) initTransactions(ctx context.Context) error {
 		);
 
 		-- Indexes for efficient querying
-		CREATE INDEX IF NOT EXISTS idx_txs_signer ON txs(signer);
-		CREATE INDEX IF NOT EXISTS idx_txs_recipient ON txs(recipient) WHERE recipient != '';
-		CREATE INDEX IF NOT EXISTS idx_txs_message_type ON txs(message_type);
-		CREATE INDEX IF NOT EXISTS idx_txs_time ON txs(height_time);
-		CREATE INDEX IF NOT EXISTS idx_txs_validator ON txs(validator_address) WHERE validator_address != '';
-		CREATE INDEX IF NOT EXISTS idx_txs_order ON txs(order_id) WHERE order_id != '';
-		CREATE INDEX IF NOT EXISTS idx_txs_poll ON txs(poll_hash) WHERE poll_hash != '';
-	`
+		CREATE INDEX IF NOT EXISTS idx_txs_signer ON %s(signer);
+		CREATE INDEX IF NOT EXISTS idx_txs_recipient ON %s(recipient) WHERE recipient != '';
+		CREATE INDEX IF NOT EXISTS idx_txs_message_type ON %s(message_type);
+		CREATE INDEX IF NOT EXISTS idx_txs_time ON %s(height_time);
+		CREATE INDEX IF NOT EXISTS idx_txs_validator ON %s(validator_address) WHERE validator_address != '';
+		CREATE INDEX IF NOT EXISTS idx_txs_order ON %s(order_id) WHERE order_id != '';
+		CREATE INDEX IF NOT EXISTS idx_txs_poll ON %s(poll_hash) WHERE poll_hash != '';
+	`, txsTable, txsTable, txsTable, txsTable, txsTable, txsTable, txsTable, txsTable)
 
 	return db.Exec(ctx, query)
 }

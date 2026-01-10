@@ -50,7 +50,7 @@ services:
     container_name: canopy-indexer-indexer
     env_file: .env
     environment:
-      POSTGRES_URL: "postgres://canopy-indexer:canopy-indexer123@postgres:5432/indexer?sslmode=disable"
+      POSTGRES_URL: "postgres://canopy-indexer:canopy-indexer123@postgres:5432/canopy-indexer?sslmode=disable"
       REDIS_URL: "redis://:canopy-redis-dev@redis:6379/0"
       HTTP_ENABLED: "true"
       HTTP_ADDR: ":8080"
@@ -80,7 +80,7 @@ services:
     container_name: canopy-indexer-backfill
     env_file: .env
     environment:
-      POSTGRES_URL: "postgres://canopy-indexer:canopy-indexer123@postgres:5432/indexer?sslmode=disable"
+      POSTGRES_URL: "postgres://canopy-indexer:canopy-indexer123@postgres:5432/canopy-indexer?sslmode=disable"
       REDIS_URL: "redis://:canopy-redis-dev@redis:6379/0"
     volumes:
       - ./bin/backfill-linux:/app/bin/backfill:ro

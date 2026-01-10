@@ -13,8 +13,8 @@ import (
 // insertBlock inserts a block into the blocks table
 // Accepts an Executor which can be either a transaction (pgx.Tx) or connection pool
 func (db *DB) insertBlock(ctx context.Context, exec postgres.Executor, block *indexermodels.Block) error {
-	query := `
-		INSERT INTO blocks (
+	query := fmt.Sprintf(`
+		INSERT INTO %s (
 			height, hash, timestamp, network_id, parent_hash, proposer_address, size,
 			num_txs, total_txs, total_vdf_iterations,
 			state_root, transaction_root, validator_root, next_validator_root
@@ -33,7 +33,7 @@ func (db *DB) insertBlock(ctx context.Context, exec postgres.Executor, block *in
 			transaction_root = EXCLUDED.transaction_root,
 			validator_root = EXCLUDED.validator_root,
 			next_validator_root = EXCLUDED.next_validator_root
-	`
+	`, db.SchemaTable("blocks"))
 
 	_, err := exec.Exec(ctx, query,
 		block.Height, block.Hash, block.Time, block.NetworkID, block.LastBlockHash, block.ProposerAddress,
@@ -50,8 +50,8 @@ func (db *DB) insertTransactions(ctx context.Context, exec postgres.Executor, tx
 	}
 
 	batch := &pgx.Batch{}
-	query := `
-		INSERT INTO txs (
+	query := fmt.Sprintf(`
+		INSERT INTO %s (
 			height, tx_hash, tx_index, timestamp, height_time, created_height, network_id,
 			message_type, signer, amount, fee, memo,
 			validator_address, commission,
@@ -95,7 +95,7 @@ func (db *DB) insertTransactions(ctx context.Context, exec postgres.Executor, tx
 			msg = EXCLUDED.msg,
 			public_key = EXCLUDED.public_key,
 			signature = EXCLUDED.signature
-	`
+	`, db.SchemaTable("txs"))
 
 	for _, tx := range txs {
 		batch.Queue(query,
@@ -116,8 +116,8 @@ func (db *DB) insertTransactions(ctx context.Context, exec postgres.Executor, tx
 
 // insertBlockSummary inserts a block summary into the block_summaries table
 func (db *DB) insertBlockSummary(ctx context.Context, exec postgres.Executor, summary *indexermodels.BlockSummary) error {
-	query := `
-		INSERT INTO block_summaries (
+	query := fmt.Sprintf(`
+		INSERT INTO %s (
 			height, height_time, total_transactions,
 			num_txs, num_txs_send, num_txs_stake, num_txs_unstake, num_txs_edit_stake,
 			num_txs_start_poll, num_txs_vote_poll, num_txs_lock_order, num_txs_close_order,
@@ -233,7 +233,7 @@ func (db *DB) insertBlockSummary(ctx context.Context, exec postgres.Executor, su
 			supply_total = EXCLUDED.supply_total,
 			supply_staked = EXCLUDED.supply_staked,
 			supply_delegated_only = EXCLUDED.supply_delegated_only
-	`
+	`, db.SchemaTable("block_summaries"))
 
 	_, err := exec.Exec(ctx, query,
 		summary.Height, summary.HeightTime, summary.TotalTransactions,
@@ -275,8 +275,8 @@ func (db *DB) insertEvents(ctx context.Context, exec postgres.Executor, events [
 	}
 
 	batch := &pgx.Batch{}
-	query := `
-		INSERT INTO events (
+	query := fmt.Sprintf(`
+		INSERT INTO %s (
 			height, chain_id, address, reference, event_type, block_height,
 			amount, sold_amount, bought_amount, local_amount, remote_amount,
 			success, local_origin, order_id, points_received, points_burned,
@@ -303,7 +303,7 @@ func (db *DB) insertEvents(ctx context.Context, exec postgres.Executor, events [
 			sellers_send_address = EXCLUDED.sellers_send_address,
 			msg = EXCLUDED.msg,
 			height_time = EXCLUDED.height_time
-	`
+	`, db.SchemaTable("events"))
 
 	for _, event := range events {
 		batch.Queue(query,
@@ -325,15 +325,15 @@ func (db *DB) insertAccounts(ctx context.Context, exec postgres.Executor, accoun
 	}
 
 	batch := &pgx.Batch{}
-	query := `
-		INSERT INTO accounts (address, height, amount, rewards, slashes, height_time)
+	query := fmt.Sprintf(`
+		INSERT INTO %s (address, height, amount, rewards, slashes, height_time)
 		VALUES ($1, $2, $3, $4, $5, $6)
 		ON CONFLICT (address, height) DO UPDATE SET
 			amount = EXCLUDED.amount,
 			rewards = EXCLUDED.rewards,
 			slashes = EXCLUDED.slashes,
 			height_time = EXCLUDED.height_time
-	`
+	`, db.SchemaTable("accounts"))
 
 	for _, account := range accounts {
 		batch.Queue(query, account.Address, account.Height, account.Amount, account.Rewards, account.Slashes, account.HeightTime)
@@ -349,8 +349,8 @@ func (db *DB) insertValidators(ctx context.Context, exec postgres.Executor, vali
 	}
 
 	batch := &pgx.Batch{}
-	query := `
-		INSERT INTO validators (
+	query := fmt.Sprintf(`
+		INSERT INTO %s (
 			address, height, public_key, net_address, staked_amount,
 			max_paused_height, unstaking_height, output, delegate, compound,
 			status, height_time
@@ -366,7 +366,7 @@ func (db *DB) insertValidators(ctx context.Context, exec postgres.Executor, vali
 			compound = EXCLUDED.compound,
 			status = EXCLUDED.status,
 			height_time = EXCLUDED.height_time
-	`
+	`, db.SchemaTable("committee_validators"))
 
 	for _, validator := range validators {
 		batch.Queue(query,
@@ -386,14 +386,14 @@ func (db *DB) insertValidatorNonSigningInfo(ctx context.Context, exec postgres.E
 	}
 
 	batch := &pgx.Batch{}
-	query := `
-		INSERT INTO validator_non_signing_info (address, height, missed_blocks_count, last_signed_height, height_time)
+	query := fmt.Sprintf(`
+		INSERT INTO %s (address, height, missed_blocks_count, last_signed_height, height_time)
 		VALUES ($1, $2, $3, $4, $5)
 		ON CONFLICT (address, height) DO UPDATE SET
 			missed_blocks_count = EXCLUDED.missed_blocks_count,
 			last_signed_height = EXCLUDED.last_signed_height,
 			height_time = EXCLUDED.height_time
-	`
+	`, db.SchemaTable("validator_non_signing_info"))
 
 	for _, info := range infos {
 		batch.Queue(query, info.Address, info.Height, info.MissedBlocksCount, info.LastSignedHeight, info.HeightTime)
@@ -409,8 +409,8 @@ func (db *DB) insertValidatorDoubleSigningInfo(ctx context.Context, exec postgre
 	}
 
 	batch := &pgx.Batch{}
-	query := `
-		INSERT INTO validator_double_signing_info (
+	query := fmt.Sprintf(`
+		INSERT INTO %s (
 			address, height, evidence_count, first_evidence_height, last_evidence_height, height_time
 		) VALUES ($1, $2, $3, $4, $5, $6)
 		ON CONFLICT (address, height) DO UPDATE SET
@@ -418,7 +418,7 @@ func (db *DB) insertValidatorDoubleSigningInfo(ctx context.Context, exec postgre
 			first_evidence_height = EXCLUDED.first_evidence_height,
 			last_evidence_height = EXCLUDED.last_evidence_height,
 			height_time = EXCLUDED.height_time
-	`
+	`, db.SchemaTable("validator_double_signing_info"))
 
 	for _, info := range infos {
 		batch.Queue(query, info.Address, info.Height, info.EvidenceCount, info.FirstEvidenceHeight, info.LastEvidenceHeight, info.HeightTime)
@@ -434,8 +434,8 @@ func (db *DB) insertPools(ctx context.Context, exec postgres.Executor, pools []*
 	}
 
 	batch := &pgx.Batch{}
-	query := `
-		INSERT INTO pools (
+	query := fmt.Sprintf(`
+		INSERT INTO %s (
 			pool_id, height, chain_id, amount, total_points, lp_count, height_time,
 			liquidity_pool_id, holding_pool_id, escrow_pool_id, reward_pool_id,
 			amount_delta, total_points_delta, lp_count_delta
@@ -453,7 +453,7 @@ func (db *DB) insertPools(ctx context.Context, exec postgres.Executor, pools []*
 			amount_delta = EXCLUDED.amount_delta,
 			total_points_delta = EXCLUDED.total_points_delta,
 			lp_count_delta = EXCLUDED.lp_count_delta
-	`
+	`, db.SchemaTable("pools"))
 
 	for _, pool := range pools {
 		batch.Queue(query,
@@ -473,8 +473,8 @@ func (db *DB) insertPoolPointsByHolder(ctx context.Context, exec postgres.Execut
 	}
 
 	batch := &pgx.Batch{}
-	query := `
-		INSERT INTO pool_points_by_holder (
+	query := fmt.Sprintf(`
+		INSERT INTO %s (
 			address, pool_id, height, height_time, committee, points,
 			liquidity_pool_points, liquidity_pool_id, pool_amount
 		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
@@ -485,7 +485,7 @@ func (db *DB) insertPoolPointsByHolder(ctx context.Context, exec postgres.Execut
 			liquidity_pool_points = EXCLUDED.liquidity_pool_points,
 			liquidity_pool_id = EXCLUDED.liquidity_pool_id,
 			pool_amount = EXCLUDED.pool_amount
-	`
+	`, db.SchemaTable("pool_points_by_holder"))
 
 	for _, holder := range holders {
 		batch.Queue(query,
@@ -504,8 +504,8 @@ func (db *DB) insertOrders(ctx context.Context, exec postgres.Executor, orders [
 	}
 
 	batch := &pgx.Batch{}
-	query := `
-		INSERT INTO orders (
+	query := fmt.Sprintf(`
+		INSERT INTO %s (
 			order_id, height, height_time, committee, data, amount_for_sale, requested_amount,
 			seller_receive_address, buyer_send_address, buyer_receive_address,
 			buyer_chain_deadline, sellers_send_address, status
@@ -522,7 +522,7 @@ func (db *DB) insertOrders(ctx context.Context, exec postgres.Executor, orders [
 			buyer_chain_deadline = EXCLUDED.buyer_chain_deadline,
 			sellers_send_address = EXCLUDED.sellers_send_address,
 			status = EXCLUDED.status
-	`
+	`, db.SchemaTable("orders"))
 
 	for _, order := range orders {
 		batch.Queue(query,
@@ -542,8 +542,8 @@ func (db *DB) insertDexOrders(ctx context.Context, exec postgres.Executor, order
 	}
 
 	batch := &pgx.Batch{}
-	query := `
-		INSERT INTO dex_orders (
+	query := fmt.Sprintf(`
+		INSERT INTO %s (
 			order_id, height, height_time, committee, address, amount_for_sale, requested_amount,
 			state, success, sold_amount, bought_amount, local_origin, locked_height
 		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
@@ -559,7 +559,7 @@ func (db *DB) insertDexOrders(ctx context.Context, exec postgres.Executor, order
 			bought_amount = EXCLUDED.bought_amount,
 			local_origin = EXCLUDED.local_origin,
 			locked_height = EXCLUDED.locked_height
-	`
+	`, db.SchemaTable("dex_orders"))
 
 	for _, order := range orders {
 		batch.Queue(query,
@@ -578,8 +578,8 @@ func (db *DB) insertDexDeposits(ctx context.Context, exec postgres.Executor, dep
 	}
 
 	batch := &pgx.Batch{}
-	query := `
-		INSERT INTO dex_deposits (
+	query := fmt.Sprintf(`
+		INSERT INTO %s (
 			order_id, height, height_time, committee, address, amount, state, local_origin, points_received
 		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 		ON CONFLICT (order_id, height) DO UPDATE SET
@@ -590,7 +590,7 @@ func (db *DB) insertDexDeposits(ctx context.Context, exec postgres.Executor, dep
 			state = EXCLUDED.state,
 			local_origin = EXCLUDED.local_origin,
 			points_received = EXCLUDED.points_received
-	`
+	`, db.SchemaTable("dex_deposits"))
 
 	for _, deposit := range deposits {
 		batch.Queue(query,
@@ -609,8 +609,8 @@ func (db *DB) insertDexWithdrawals(ctx context.Context, exec postgres.Executor, 
 	}
 
 	batch := &pgx.Batch{}
-	query := `
-		INSERT INTO dex_withdrawals (
+	query := fmt.Sprintf(`
+		INSERT INTO %s (
 			order_id, height, height_time, committee, address, percent, state,
 			local_amount, remote_amount, points_burned
 		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
@@ -623,7 +623,7 @@ func (db *DB) insertDexWithdrawals(ctx context.Context, exec postgres.Executor, 
 			local_amount = EXCLUDED.local_amount,
 			remote_amount = EXCLUDED.remote_amount,
 			points_burned = EXCLUDED.points_burned
-	`
+	`, db.SchemaTable("dex_withdrawals"))
 
 	for _, withdrawal := range withdrawals {
 		batch.Queue(query,
@@ -642,8 +642,8 @@ func (db *DB) insertDexPrices(ctx context.Context, exec postgres.Executor, price
 	}
 
 	batch := &pgx.Batch{}
-	query := `
-		INSERT INTO dex_prices (
+	query := fmt.Sprintf(`
+		INSERT INTO %s (
 			local_chain_id, remote_chain_id, height, local_pool, remote_pool, price_e6,
 			height_time, price_delta, local_pool_delta, remote_pool_delta
 		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
@@ -655,7 +655,7 @@ func (db *DB) insertDexPrices(ctx context.Context, exec postgres.Executor, price
 			price_delta = EXCLUDED.price_delta,
 			local_pool_delta = EXCLUDED.local_pool_delta,
 			remote_pool_delta = EXCLUDED.remote_pool_delta
-	`
+	`, db.SchemaTable("dex_prices"))
 
 	for _, price := range prices {
 		batch.Queue(query,
@@ -674,8 +674,8 @@ func (db *DB) insertCommittees(ctx context.Context, exec postgres.Executor, comm
 	}
 
 	batch := &pgx.Batch{}
-	query := `
-		INSERT INTO committees (
+	query := fmt.Sprintf(`
+		INSERT INTO %s (
 			chain_id, last_root_height_updated, last_chain_height_updated, number_of_samples,
 			subsidized, retired, height, height_time
 		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
@@ -686,7 +686,7 @@ func (db *DB) insertCommittees(ctx context.Context, exec postgres.Executor, comm
 			subsidized = EXCLUDED.subsidized,
 			retired = EXCLUDED.retired,
 			height_time = EXCLUDED.height_time
-	`
+	`, db.SchemaTable("committees"))
 
 	for _, committee := range committees {
 		batch.Queue(query,
@@ -705,8 +705,8 @@ func (db *DB) insertCommitteeValidators(ctx context.Context, exec postgres.Execu
 	}
 
 	batch := &pgx.Batch{}
-	query := `
-		INSERT INTO committee_validators (
+	query := fmt.Sprintf(`
+		INSERT INTO %s (
 			committee_id, validator_address, staked_amount, status, delegate, compound,
 			height, height_time, subsidized, retired
 		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
@@ -718,7 +718,7 @@ func (db *DB) insertCommitteeValidators(ctx context.Context, exec postgres.Execu
 			height_time = EXCLUDED.height_time,
 			subsidized = EXCLUDED.subsidized,
 			retired = EXCLUDED.retired
-	`
+	`, db.SchemaTable("committee_validators"))
 
 	for _, cv := range cvs {
 		batch.Queue(query,
@@ -737,13 +737,13 @@ func (db *DB) insertCommitteePayments(ctx context.Context, exec postgres.Executo
 	}
 
 	batch := &pgx.Batch{}
-	query := `
-		INSERT INTO committee_payments (committee_id, address, percent, height, height_time)
+	query := fmt.Sprintf(`
+		INSERT INTO %s (committee_id, address, percent, height, height_time)
 		VALUES ($1, $2, $3, $4, $5)
 		ON CONFLICT (committee_id, address, height) DO UPDATE SET
 			percent = EXCLUDED.percent,
 			height_time = EXCLUDED.height_time
-	`
+	`, db.SchemaTable("committee_payments"))
 
 	for _, payment := range payments {
 		batch.Queue(query, payment.CommitteeID, payment.Address, payment.Percent, payment.Height, payment.HeightTime)
@@ -754,8 +754,8 @@ func (db *DB) insertCommitteePayments(ctx context.Context, exec postgres.Executo
 
 // insertParams inserts params
 func (db *DB) insertParams(ctx context.Context, exec postgres.Executor, params *indexermodels.Params) error {
-	query := `
-		INSERT INTO params (
+	query := fmt.Sprintf(`
+		INSERT INTO %s (
 			height, height_time, block_size, protocol_version, root_chain_id, retired,
 			unstaking_blocks, max_pause_blocks, double_sign_slash_percentage, non_sign_slash_percentage,
 			max_non_sign, non_sign_window, max_committees, max_committee_size, early_withdrawal_penalty,
@@ -812,7 +812,7 @@ func (db *DB) insertParams(ctx context.Context, exec postgres.Executor, params *
 			dex_liquidity_deposit_fee = EXCLUDED.dex_liquidity_deposit_fee,
 			dex_liquidity_withdraw_fee = EXCLUDED.dex_liquidity_withdraw_fee,
 			dao_reward_percentage = EXCLUDED.dao_reward_percentage
-	`
+	`, db.SchemaTable("params"))
 
 	_, err := exec.Exec(ctx, query,
 		params.Height, params.HeightTime, params.BlockSize, params.ProtocolVersion, params.RootChainID, params.Retired,
@@ -831,15 +831,15 @@ func (db *DB) insertParams(ctx context.Context, exec postgres.Executor, params *
 
 // insertSupply inserts supply
 func (db *DB) insertSupply(ctx context.Context, exec postgres.Executor, supply *indexermodels.Supply) error {
-	query := `
-		INSERT INTO supply (total, staked, delegated_only, height, height_time)
+	query := fmt.Sprintf(`
+		INSERT INTO %s (total, staked, delegated_only, height, height_time)
 		VALUES ($1, $2, $3, $4, $5)
 		ON CONFLICT (height) DO UPDATE SET
 			total = EXCLUDED.total,
 			staked = EXCLUDED.staked,
 			delegated_only = EXCLUDED.delegated_only,
 			height_time = EXCLUDED.height_time
-	`
+	`, db.SchemaTable("supply"))
 
 	_, err := exec.Exec(ctx, query, supply.Total, supply.Staked, supply.DelegatedOnly, supply.Height, supply.HeightTime)
 	return err
@@ -852,8 +852,8 @@ func (db *DB) insertPollSnapshots(ctx context.Context, exec postgres.Executor, s
 	}
 
 	batch := &pgx.Batch{}
-	query := `
-		INSERT INTO poll_snapshots (
+	query := fmt.Sprintf(`
+		INSERT INTO %s (
 			proposal_hash, proposal_url, accounts_approve_tokens, accounts_reject_tokens,
 			accounts_total_voted_tokens, accounts_total_tokens, accounts_approve_percentage,
 			accounts_reject_percentage, accounts_voted_percentage, validators_approve_tokens,
@@ -877,7 +877,7 @@ func (db *DB) insertPollSnapshots(ctx context.Context, exec postgres.Executor, s
 			validators_approve_percentage = EXCLUDED.validators_approve_percentage,
 			validators_reject_percentage = EXCLUDED.validators_reject_percentage,
 			validators_voted_percentage = EXCLUDED.validators_voted_percentage
-	`
+	`, db.SchemaTable("poll_snapshots"))
 
 	for _, snapshot := range snapshots {
 		batch.Queue(query,
@@ -900,8 +900,8 @@ func (db *DB) insertProposalSnapshots(ctx context.Context, exec postgres.Executo
 	}
 
 	batch := &pgx.Batch{}
-	query := `
-		INSERT INTO proposal_snapshots (
+	query := fmt.Sprintf(`
+		INSERT INTO %s (
 			proposal_hash, proposal, approve, snapshot_time, proposal_type, signer,
 			start_height, end_height, parameter_space, parameter_key, parameter_value,
 			dao_transfer_address, dao_transfer_amount
@@ -918,7 +918,7 @@ func (db *DB) insertProposalSnapshots(ctx context.Context, exec postgres.Executo
 			parameter_value = EXCLUDED.parameter_value,
 			dao_transfer_address = EXCLUDED.dao_transfer_address,
 			dao_transfer_amount = EXCLUDED.dao_transfer_amount
-	`
+	`, db.SchemaTable("proposal_snapshots"))
 
 	for _, snapshot := range snapshots {
 		batch.Queue(query,
@@ -938,15 +938,15 @@ func (db *DB) insertSupplies(ctx context.Context, exec postgres.Executor, suppli
 	}
 
 	batch := &pgx.Batch{}
-	query := `
-		INSERT INTO supply (total, staked, delegated_only, height, height_time)
+	query := fmt.Sprintf(`
+		INSERT INTO %s (total, staked, delegated_only, height, height_time)
 		VALUES ($1, $2, $3, $4, $5)
 		ON CONFLICT (height) DO UPDATE SET
 			total = EXCLUDED.total,
 			staked = EXCLUDED.staked,
 			delegated_only = EXCLUDED.delegated_only,
 			height_time = EXCLUDED.height_time
-	`
+	`, db.SchemaTable("supply"))
 
 	for _, supply := range supplies {
 		batch.Queue(query, supply.Total, supply.Staked, supply.DelegatedOnly, supply.Height, supply.HeightTime)

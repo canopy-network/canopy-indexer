@@ -2,12 +2,14 @@ package chain
 
 import (
 	"context"
+	"fmt"
 )
 
 // initValidators creates the validators table
 func (db *DB) initValidators(ctx context.Context) error {
-	query := `
-		CREATE TABLE IF NOT EXISTS %s.validators (
+	validatorsTable := db.SchemaTable("validators")
+	query := fmt.Sprintf(`
+		CREATE TABLE IF NOT EXISTS %s (
 			address TEXT NOT NULL,
 			height BIGINT NOT NULL,
 			public_key TEXT NOT NULL,
@@ -23,17 +25,18 @@ func (db *DB) initValidators(ctx context.Context) error {
 			PRIMARY KEY (address, height)
 		);
 
-		CREATE INDEX IF NOT EXISTS idx_validators_height ON validators(height);
-		CREATE INDEX IF NOT EXISTS idx_validators_status ON validators(status);
-	`
+		CREATE INDEX IF NOT EXISTS idx_validators_height ON %s(height);
+		CREATE INDEX IF NOT EXISTS idx_validators_status ON %s(status);
+	`, validatorsTable, validatorsTable, validatorsTable)
 
 	return db.Exec(ctx, query)
 }
 
 // initValidatorNonSigningInfo creates the validator_non_signing_info table
 func (db *DB) initValidatorNonSigningInfo(ctx context.Context) error {
-	query := `
-		CREATE TABLE IF NOT EXISTS %s.validator_non_signing_info (
+	validatorNonSigningInfoTable := db.SchemaTable("validator_non_signing_info")
+	query := fmt.Sprintf(`
+		CREATE TABLE IF NOT EXISTS %s (
 			address TEXT NOT NULL,
 			height BIGINT NOT NULL,
 			missed_blocks_count BIGINT NOT NULL DEFAULT 0,
@@ -42,16 +45,17 @@ func (db *DB) initValidatorNonSigningInfo(ctx context.Context) error {
 			PRIMARY KEY (address, height)
 		);
 
-		CREATE INDEX IF NOT EXISTS idx_validator_non_signing_info_height ON validator_non_signing_info(height);
-	`
+		CREATE INDEX IF NOT EXISTS idx_validator_non_signing_info_height ON %s(height);
+	`, validatorNonSigningInfoTable, validatorNonSigningInfoTable)
 
 	return db.Exec(ctx, query)
 }
 
 // initValidatorDoubleSigningInfo creates the validator_double_signing_info table
 func (db *DB) initValidatorDoubleSigningInfo(ctx context.Context) error {
-	query := `
-		CREATE TABLE IF NOT EXISTS %s.validator_double_signing_info (
+	validatorDoubleSigningInfoTable := db.SchemaTable("validator_double_signing_info")
+	query := fmt.Sprintf(`
+		CREATE TABLE IF NOT EXISTS %s (
 			address TEXT NOT NULL,
 			height BIGINT NOT NULL,
 			evidence_count BIGINT NOT NULL DEFAULT 0,
@@ -61,8 +65,8 @@ func (db *DB) initValidatorDoubleSigningInfo(ctx context.Context) error {
 			PRIMARY KEY (address, height)
 		);
 
-		CREATE INDEX IF NOT EXISTS idx_validator_double_signing_info_height ON validator_double_signing_info(height);
-	`
+		CREATE INDEX IF NOT EXISTS idx_validator_double_signing_info_height ON %s(height);
+	`, validatorDoubleSigningInfoTable, validatorDoubleSigningInfoTable)
 
 	return db.Exec(ctx, query)
 }

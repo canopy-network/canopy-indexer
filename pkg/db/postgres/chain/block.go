@@ -51,8 +51,9 @@ func (db *DB) initBlocks(ctx context.Context) error {
 // initBlockSummaries creates the block_summaries table matching indexer.BlockSummary
 // This matches pkg/db/models/indexer/block_summary.go:119-241 (90+ fields)
 func (db *DB) initBlockSummaries(ctx context.Context) error {
-	query := `
-		CREATE TABLE IF NOT EXISTS %s.block_summaries (
+	blockSummariesTable := db.SchemaTable("block_summaries")
+	query := fmt.Sprintf(`
+		CREATE TABLE IF NOT EXISTS %s (
 			-- Block metadata
 			height BIGINT PRIMARY KEY,
 			height_time TIMESTAMP WITH TIME ZONE NOT NULL,
@@ -172,8 +173,8 @@ func (db *DB) initBlockSummaries(ctx context.Context) error {
 			supply_delegated_only BIGINT NOT NULL DEFAULT 0
 		);
 
-		CREATE INDEX IF NOT EXISTS idx_block_summaries_time ON block_summaries(height_time);
-	`
+		CREATE INDEX IF NOT EXISTS idx_block_summaries_time ON %s(height_time);
+	`, blockSummariesTable, blockSummariesTable)
 
 	return db.Exec(ctx, query)
 }

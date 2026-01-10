@@ -93,7 +93,7 @@ func buildCountQueryWithOptions(baseQuery string, opts QueryOptions) (string, []
 
 // QueryLatestAccounts queries the latest account snapshots
 func (db *DB) QueryLatestAccounts(ctx context.Context, opts QueryOptions) ([]AccountCrossChain, *QueryMetadata, error) {
-	baseQuery := "SELECT * FROM accounts_latest"
+	baseQuery := fmt.Sprintf("SELECT * FROM %s", db.SchemaTable("accounts_latest"))
 
 	// Get total count
 	countQuery, countArgs := buildCountQueryWithOptions(baseQuery, opts)
@@ -122,7 +122,7 @@ func (db *DB) QueryLatestAccounts(ctx context.Context, opts QueryOptions) ([]Acc
 
 // QueryLatestValidators queries the latest validator snapshots
 func (db *DB) QueryLatestValidators(ctx context.Context, opts QueryOptions) ([]ValidatorCrossChain, *QueryMetadata, error) {
-	baseQuery := "SELECT * FROM validators_latest"
+	baseQuery := fmt.Sprintf("SELECT * FROM %s", db.SchemaTable("validators_latest"))
 
 	// Get total count
 	countQuery, countArgs := buildCountQueryWithOptions(baseQuery, opts)
@@ -151,7 +151,7 @@ func (db *DB) QueryLatestValidators(ctx context.Context, opts QueryOptions) ([]V
 
 // QueryLatestValidatorNonSigningInfo queries the latest validator non-signing info
 func (db *DB) QueryLatestValidatorNonSigningInfo(ctx context.Context, opts QueryOptions) ([]ValidatorNonSigningInfoCrossChain, *QueryMetadata, error) {
-	baseQuery := "SELECT * FROM validator_non_signing_info"
+	baseQuery := fmt.Sprintf("SELECT * FROM %s", db.SchemaTable("validator_non_signing_info"))
 
 	// Get total count
 	countQuery, countArgs := buildCountQueryWithOptions(baseQuery, opts)
@@ -180,7 +180,7 @@ func (db *DB) QueryLatestValidatorNonSigningInfo(ctx context.Context, opts Query
 
 // QueryLatestValidatorDoubleSigningInfo queries the latest validator double-signing info
 func (db *DB) QueryLatestValidatorDoubleSigningInfo(ctx context.Context, opts QueryOptions) ([]ValidatorDoubleSigningInfoCrossChain, *QueryMetadata, error) {
-	baseQuery := "SELECT * FROM validator_double_signing_info"
+	baseQuery := fmt.Sprintf("SELECT * FROM %s", db.SchemaTable("validator_double_signing_info"))
 
 	// Get total count
 	countQuery, countArgs := buildCountQueryWithOptions(baseQuery, opts)
@@ -209,7 +209,7 @@ func (db *DB) QueryLatestValidatorDoubleSigningInfo(ctx context.Context, opts Qu
 
 // QueryLatestPools queries the latest pool snapshots
 func (db *DB) QueryLatestPools(ctx context.Context, opts QueryOptions) ([]PoolCrossChain, *QueryMetadata, error) {
-	baseQuery := "SELECT * FROM pools_latest"
+	baseQuery := fmt.Sprintf("SELECT * FROM %s", db.SchemaTable("pools_latest"))
 
 	// Get total count
 	countQuery, countArgs := buildCountQueryWithOptions(baseQuery, opts)
@@ -238,7 +238,7 @@ func (db *DB) QueryLatestPools(ctx context.Context, opts QueryOptions) ([]PoolCr
 
 // QueryLatestPoolPointsByHolder queries the latest pool points by holder
 func (db *DB) QueryLatestPoolPointsByHolder(ctx context.Context, opts QueryOptions) ([]PoolPointsByHolderCrossChain, *QueryMetadata, error) {
-	baseQuery := "SELECT * FROM pool_points_by_holder_latest"
+	baseQuery := fmt.Sprintf("SELECT * FROM %s", db.SchemaTable("pool_points_by_holder_latest"))
 
 	// Get total count
 	countQuery, countArgs := buildCountQueryWithOptions(baseQuery, opts)
@@ -267,7 +267,7 @@ func (db *DB) QueryLatestPoolPointsByHolder(ctx context.Context, opts QueryOptio
 
 // QueryLatestDexOrders queries the latest DEX orders
 func (db *DB) QueryLatestDexOrders(ctx context.Context, opts QueryOptions) ([]DexOrderCrossChain, *QueryMetadata, error) {
-	baseQuery := "SELECT * FROM dex_orders_latest"
+	baseQuery := fmt.Sprintf("SELECT * FROM %s", db.SchemaTable("dex_orders_latest"))
 
 	// Get total count
 	countQuery, countArgs := buildCountQueryWithOptions(baseQuery, opts)
@@ -296,7 +296,7 @@ func (db *DB) QueryLatestDexOrders(ctx context.Context, opts QueryOptions) ([]De
 
 // QueryLatestDexDeposits queries the latest DEX deposits
 func (db *DB) QueryLatestDexDeposits(ctx context.Context, opts QueryOptions) ([]DexDepositCrossChain, *QueryMetadata, error) {
-	baseQuery := "SELECT * FROM dex_deposits_latest"
+	baseQuery := fmt.Sprintf("SELECT * FROM %s", db.SchemaTable("dex_deposits_latest"))
 
 	// Get total count
 	countQuery, countArgs := buildCountQueryWithOptions(baseQuery, opts)
@@ -325,7 +325,7 @@ func (db *DB) QueryLatestDexDeposits(ctx context.Context, opts QueryOptions) ([]
 
 // QueryLatestDexWithdrawals queries the latest DEX withdrawals
 func (db *DB) QueryLatestDexWithdrawals(ctx context.Context, opts QueryOptions) ([]DexWithdrawalCrossChain, *QueryMetadata, error) {
-	baseQuery := "SELECT * FROM dex_withdrawals_latest"
+	baseQuery := fmt.Sprintf("SELECT * FROM %s", db.SchemaTable("dex_withdrawals_latest"))
 
 	// Get total count
 	countQuery, countArgs := buildCountQueryWithOptions(baseQuery, opts)
@@ -354,7 +354,7 @@ func (db *DB) QueryLatestDexWithdrawals(ctx context.Context, opts QueryOptions) 
 
 // QueryLatestBlockSummaries queries the latest block summaries
 func (db *DB) QueryLatestBlockSummaries(ctx context.Context, opts QueryOptions) ([]BlockSummaryCrossChain, *QueryMetadata, error) {
-	baseQuery := "SELECT * FROM block_summaries"
+	baseQuery := fmt.Sprintf("SELECT * FROM %s", db.SchemaTable("block_summaries"))
 
 	// Get total count
 	countQuery, countArgs := buildCountQueryWithOptions(baseQuery, opts)
@@ -383,7 +383,7 @@ func (db *DB) QueryLatestBlockSummaries(ctx context.Context, opts QueryOptions) 
 
 // QueryLatestCommitteePayments queries the latest committee payments
 func (db *DB) QueryLatestCommitteePayments(ctx context.Context, opts QueryOptions) ([]CommitteePaymentCrossChain, *QueryMetadata, error) {
-	baseQuery := "SELECT * FROM committee_payments"
+	baseQuery := fmt.Sprintf("SELECT * FROM %s", db.SchemaTable("committee_payments"))
 
 	// Get total count
 	countQuery, countArgs := buildCountQueryWithOptions(baseQuery, opts)
@@ -412,7 +412,7 @@ func (db *DB) QueryLatestCommitteePayments(ctx context.Context, opts QueryOption
 
 // QueryLatestEvents queries the latest events
 func (db *DB) QueryLatestEvents(ctx context.Context, opts QueryOptions) ([]EventCrossChain, *QueryMetadata, error) {
-	baseQuery := "SELECT * FROM events"
+	baseQuery := fmt.Sprintf("SELECT * FROM %s", db.SchemaTable("events"))
 
 	// Get total count
 	countQuery, countArgs := buildCountQueryWithOptions(baseQuery, opts)
@@ -441,7 +441,7 @@ func (db *DB) QueryLatestEvents(ctx context.Context, opts QueryOptions) ([]Event
 
 // QueryLatestTransactions queries the latest transactions
 func (db *DB) QueryLatestTransactions(ctx context.Context, opts QueryOptions) ([]TransactionCrossChain, *QueryMetadata, error) {
-	baseQuery := "SELECT * FROM txs"
+	baseQuery := fmt.Sprintf("SELECT * FROM %s", db.SchemaTable("txs"))
 
 	// Get total count
 	countQuery, countArgs := buildCountQueryWithOptions(baseQuery, opts)
@@ -509,7 +509,7 @@ func (db *DB) QueryLatestEntity(ctx context.Context, entityName string, opts Que
 		tableName = entityName + "_latest"
 	}
 
-	baseQuery := fmt.Sprintf("SELECT * FROM %s", tableName)
+	baseQuery := fmt.Sprintf("SELECT * FROM %s", db.SchemaTable(tableName))
 
 	// Get total count
 	countQuery, countArgs := buildCountQueryWithOptions(baseQuery, opts)
@@ -581,7 +581,7 @@ func (db *DB) QueryLPPositionSnapshots(ctx context.Context, params LPPositionSna
 		argIndex++
 	}
 
-	query := "SELECT * FROM lp_position_snapshots"
+	query := fmt.Sprintf("SELECT * FROM %s", db.SchemaTable("lp_position_snapshots"))
 	if len(conditions) > 0 {
 		query += " WHERE " + strings.Join(conditions, " AND ")
 	}
@@ -611,12 +611,12 @@ func (db *DB) QueryLPPositionSnapshots(ctx context.Context, params LPPositionSna
 
 // GetLatestLPPositionSnapshot gets the latest LP position snapshot for a specific account/pool
 func (db *DB) GetLatestLPPositionSnapshot(ctx context.Context, sourceChainID uint64, address string, poolID uint64) (*indexermodels.LPPositionSnapshot, error) {
-	query := `
-		SELECT * FROM lp_position_snapshots
+	query := fmt.Sprintf(`
+		SELECT * FROM %s
 		WHERE source_chain_id = $1 AND address = $2 AND pool_id = $3
 		ORDER BY snapshot_time DESC
 		LIMIT 1
-	`
+	`, db.SchemaTable("lp_position_snapshots"))
 
 	var snapshot indexermodels.LPPositionSnapshot
 	rows, err := db.Client.Pool.Query(ctx, query, sourceChainID, address, poolID)
@@ -655,8 +655,8 @@ func (db *DB) InsertLPPositionSnapshots(ctx context.Context, snapshots []*indexe
 		return nil
 	}
 
-	query := `
-		INSERT INTO lp_position_snapshots (
+	query := fmt.Sprintf(`
+		INSERT INTO %s (
 			source_chain_id, address, pool_id, snapshot_date,
 			snapshot_height, snapshot_balance, pool_share_percentage,
 			position_created_date, position_closed_date, is_position_active,
@@ -671,7 +671,7 @@ func (db *DB) InsertLPPositionSnapshots(ctx context.Context, snapshots []*indexe
 			is_position_active = EXCLUDED.is_position_active,
 			computed_at = EXCLUDED.computed_at,
 			updated_at = EXCLUDED.updated_at
-	`
+	`, db.SchemaTable("lp_position_snapshots"))
 
 	for _, snap := range snapshots {
 		if err := db.Exec(ctx, query,

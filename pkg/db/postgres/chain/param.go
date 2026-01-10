@@ -2,14 +2,16 @@ package chain
 
 import (
 	"context"
+	"fmt"
 )
 
 // initParams creates the params table matching indexer.Params
 // This matches pkg/db/models/indexer/params.go:66-118 (42 fields)
 // Only inserted when parameters change
 func (db *DB) initParams(ctx context.Context) error {
-	query := `
-		CREATE TABLE IF NOT EXISTS %s.params (
+	paramsTable := db.SchemaTable("params")
+	query := fmt.Sprintf(`
+		CREATE TABLE IF NOT EXISTS %s (
 			height BIGINT PRIMARY KEY,
 			height_time TIMESTAMP WITH TIME ZONE NOT NULL,
 			block_size BIGINT NOT NULL DEFAULT 0,
@@ -53,7 +55,7 @@ func (db *DB) initParams(ctx context.Context) error {
 			dex_liquidity_withdraw_fee BIGINT NOT NULL DEFAULT 0,
 			dao_reward_percentage BIGINT NOT NULL DEFAULT 0
 		);
-	`
+	`, paramsTable)
 
 	return db.Exec(ctx, query)
 }

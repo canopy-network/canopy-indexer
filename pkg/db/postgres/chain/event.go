@@ -2,12 +2,14 @@ package chain
 
 import (
 	"context"
+	"fmt"
 )
 
 // initEvents creates the events table
 func (db *DB) initEvents(ctx context.Context) error {
-	query := `
-		CREATE TABLE IF NOT EXISTS %s.events (
+	eventsTable := db.SchemaTable("events")
+	query := fmt.Sprintf(`
+		CREATE TABLE IF NOT EXISTS %s (
 			height BIGINT NOT NULL,
 			chain_id SMALLINT NOT NULL,
 			address TEXT NOT NULL,
@@ -33,10 +35,10 @@ func (db *DB) initEvents(ctx context.Context) error {
 			PRIMARY KEY (height, event_type, chain_id, address, reference)
 		);
 
-		CREATE INDEX IF NOT EXISTS idx_events_address ON events(address);
-		CREATE INDEX IF NOT EXISTS idx_events_type ON events(event_type);
-		CREATE INDEX IF NOT EXISTS idx_events_time ON events(height_time);
-	`
+		CREATE INDEX IF NOT EXISTS idx_events_address ON %s(address);
+		CREATE INDEX IF NOT EXISTS idx_events_type ON %s(event_type);
+		CREATE INDEX IF NOT EXISTS idx_events_time ON %s(height_time);
+	`, eventsTable, eventsTable, eventsTable, eventsTable)
 
 	return db.Exec(ctx, query)
 }

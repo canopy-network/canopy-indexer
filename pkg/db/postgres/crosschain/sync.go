@@ -61,7 +61,7 @@ func (db *DB) createSyncTrigger(ctx context.Context, tx pgx.Tx, chainID uint64, 
 		CREATE OR REPLACE FUNCTION %s()
 		RETURNS TRIGGER AS $$
 		BEGIN
-			INSERT INTO %s.%s (chain_id, %s, updated_at)
+			INSERT INTO %s (chain_id, %s, updated_at)
 			VALUES (%d, %s, NOW())
 			ON CONFLICT ON CONSTRAINT %s_pkey DO UPDATE SET
 				%s,
@@ -69,7 +69,7 @@ func (db *DB) createSyncTrigger(ctx context.Context, tx pgx.Tx, chainID uint64, 
 			RETURN NEW;
 		END;
 		$$ LANGUAGE plpgsql;
-	`, functionName, db.DatabaseName(), cfg.TableName, columnList, chainID, newColumnList, cfg.TableName, buildUpdateSet(cfg.ColumnNames))
+	`, functionName, db.SchemaTable(cfg.TableName), columnList, chainID, newColumnList, cfg.TableName, buildUpdateSet(cfg.ColumnNames))
 
 	if _, err := tx.Exec(ctx, createFunctionSQL); err != nil {
 		return fmt.Errorf("failed to create trigger function: %w", err)
@@ -124,17 +124,17 @@ func (db *DB) ResyncTable(ctx context.Context, chainID uint64, tableName string)
 
 	return db.Client.BeginFunc(ctx, func(tx pgx.Tx) error {
 		// Delete existing data for this chain to avoid duplicates
-		deleteSQL := fmt.Sprintf(`DELETE FROM %s.%s WHERE chain_id = $1`, db.DatabaseName(), tableName)
+		deleteSQL := fmt.Sprintf(`DELETE FROM %s WHERE chain_id = $1`, db.SchemaTable(tableName))
 		if _, err := tx.Exec(ctx, deleteSQL, chainID); err != nil {
 			return fmt.Errorf("failed to delete existing data: %w", err)
 		}
 
 		// Copy all data from chain table
 		insertSQL := fmt.Sprintf(`
-			INSERT INTO %s.%s (chain_id, %s, updated_at)
-			SELECT $1, %s, NOW()
-			FROM %s.%s
-		`, db.DatabaseName(), tableName, columnList, columnList, chainDBName, tableName)
+		INSERT INTO %s (chain_id, %s, updated_at)
+		SELECT $1, %s, NOW()
+		FROM %s.%s
+	`, db.SchemaTable(tableName), columnList, columnList, chainDBName, tableName)
 
 		if _, err := tx.Exec(ctx, insertSQL, chainID); err != nil {
 			return fmt.Errorf("failed to insert data: %w", err)
@@ -208,7 +208,7 @@ func (db *DB) GetSyncStatus(ctx context.Context, chainID uint64, tableName strin
 	status.SourceRowCount = sourceCount
 
 	// Get crosschain table row count for this chain
-	globalCountSQL := fmt.Sprintf(`SELECT COUNT(*) FROM %s.%s WHERE chain_id = $1`, db.DatabaseName(), tableName)
+	globalCountSQL := fmt.Sprintf(`SELECT COUNT(*) FROM %s WHERE chain_id = $1`, db.SchemaTable(tableName))
 	var globalCount uint64
 	if err := db.Client.Pool.QueryRow(ctx, globalCountSQL, chainID).Scan(&globalCount); err != nil {
 		globalCount = 0
@@ -269,7 +269,7 @@ func (db *DB) RemoveChainSync(ctx context.Context, chainID uint64) error {
 
 		// Delete all data for this chain from crosschain tables
 		for _, cfg := range configs {
-			deleteSQL := fmt.Sprintf(`DELETE FROM %s.%s WHERE chain_id = $1`, db.DatabaseName(), cfg.TableName)
+			deleteSQL := fmt.Sprintf(`DELETE FROM %s WHERE chain_id = $1`, db.SchemaTable(cfg.TableName))
 			if _, err := tx.Exec(ctx, deleteSQL, chainID); err != nil {
 				db.Logger.Warn("Failed to delete chain data",
 					zap.String("table", cfg.TableName),

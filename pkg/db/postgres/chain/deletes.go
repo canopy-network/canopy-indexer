@@ -222,7 +222,7 @@ func (db *DB) DeleteBlockRange(ctx context.Context, fromHeight, toHeight uint64)
 		}
 
 		for _, table := range tables {
-			query := fmt.Sprintf("DELETE FROM %s WHERE height >= $1 AND height <= $2", table)
+			query := fmt.Sprintf("DELETE FROM %s WHERE height >= $1 AND height <= $2", db.SchemaTable(table))
 			_, err := tx.Exec(ctx, query, fromHeight, toHeight)
 			if err != nil {
 				return fmt.Errorf("failed to delete from %s: %w", table, err)

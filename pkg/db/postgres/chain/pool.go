@@ -2,13 +2,15 @@ package chain
 
 import (
 	"context"
+	"fmt"
 )
 
 // initPools creates the pools table matching indexer.Pool
 // This matches pkg/db/models/indexer/pool.go:48-75 (14 fields)
 func (db *DB) initPools(ctx context.Context) error {
-	query := `
-		CREATE TABLE IF NOT EXISTS %s.pools (
+	poolsTable := db.SchemaTable("pools")
+	query := fmt.Sprintf(`
+		CREATE TABLE IF NOT EXISTS %s (
 			pool_id INTEGER NOT NULL,                      -- UInt32 -> INTEGER
 			height BIGINT NOT NULL,
 			chain_id INTEGER NOT NULL,                    -- UInt16 -> INTEGER (renamed from pool_chain_id)
@@ -26,9 +28,9 @@ func (db *DB) initPools(ctx context.Context) error {
 			PRIMARY KEY (pool_id, height)
 		);
 
-		CREATE INDEX IF NOT EXISTS idx_pools_height ON pools(height);
-		CREATE INDEX IF NOT EXISTS idx_pools_chain ON pools(chain_id);
-	`
+		CREATE INDEX IF NOT EXISTS idx_pools_height ON %s(height);
+		CREATE INDEX IF NOT EXISTS idx_pools_chain ON %s(chain_id);
+	`, poolsTable, poolsTable, poolsTable)
 
 	return db.Exec(ctx, query)
 }
@@ -36,8 +38,9 @@ func (db *DB) initPools(ctx context.Context) error {
 // initPoolPointsByHolder creates the pool_points_by_holder table matching indexer.PoolPointsByHolder
 // This matches pkg/db/models/indexer/pool_points.go:46-68 (9 fields)
 func (db *DB) initPoolPointsByHolder(ctx context.Context) error {
-	query := `
-		CREATE TABLE IF NOT EXISTS %s.pool_points_by_holder (
+	poolPointsByHolderTable := db.SchemaTable("pool_points_by_holder")
+	query := fmt.Sprintf(`
+		CREATE TABLE IF NOT EXISTS %s (
 			address TEXT NOT NULL,
 			pool_id INTEGER NOT NULL,                      -- UInt32 -> INTEGER
 			height BIGINT NOT NULL,
@@ -50,10 +53,10 @@ func (db *DB) initPoolPointsByHolder(ctx context.Context) error {
 			PRIMARY KEY (address, pool_id, height)
 		);
 
-		CREATE INDEX IF NOT EXISTS idx_pool_points_by_holder_height ON pool_points_by_holder(height);
-		CREATE INDEX IF NOT EXISTS idx_pool_points_by_holder_pool ON pool_points_by_holder(pool_id);
-		CREATE INDEX IF NOT EXISTS idx_pool_points_by_holder_address ON pool_points_by_holder(address);
-	`
+		CREATE INDEX IF NOT EXISTS idx_pool_points_by_holder_height ON %s(height);
+		CREATE INDEX IF NOT EXISTS idx_pool_points_by_holder_pool ON %s(pool_id);
+		CREATE INDEX IF NOT EXISTS idx_pool_points_by_holder_address ON %s(address);
+	`, poolPointsByHolderTable, poolPointsByHolderTable, poolPointsByHolderTable, poolPointsByHolderTable)
 
 	return db.Exec(ctx, query)
 }

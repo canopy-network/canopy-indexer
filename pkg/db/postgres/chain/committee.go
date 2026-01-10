@@ -10,8 +10,9 @@ import (
 // initCommittees creates the committees table matching indexer.Committee
 // This matches pkg/db/models/indexer/committee.go:32-48 (8 fields)
 func (db *DB) initCommittees(ctx context.Context) error {
-	query := `
-		CREATE TABLE IF NOT EXISTS %s.committees (
+	committeesTable := db.SchemaTable("committees")
+	query := fmt.Sprintf(`
+		CREATE TABLE IF NOT EXISTS %s (
 			chain_id SMALLINT NOT NULL,                    -- UInt16 -> SMALLINT (renamed to chain_id, crosschain uses committee_chain_id)
 			last_root_height_updated BIGINT NOT NULL DEFAULT 0,
 			last_chain_height_updated BIGINT NOT NULL DEFAULT 0,
@@ -23,8 +24,8 @@ func (db *DB) initCommittees(ctx context.Context) error {
 			PRIMARY KEY (chain_id, height)
 		);
 
-		CREATE INDEX IF NOT EXISTS idx_committees_height ON committees(height);
-	`
+		CREATE INDEX IF NOT EXISTS idx_committees_height ON %s(height);
+	`, committeesTable, committeesTable)
 
 	return db.Exec(ctx, query)
 }
@@ -32,8 +33,9 @@ func (db *DB) initCommittees(ctx context.Context) error {
 // initCommitteeValidators creates the committee_validators table matching indexer.CommitteeValidator
 // This matches pkg/db/models/indexer/committee_validator.go:48-67 (10 fields)
 func (db *DB) initCommitteeValidators(ctx context.Context) error {
-	query := `
-		CREATE TABLE IF NOT EXISTS %s.committee_validators (
+	committeeValidatorsTable := db.SchemaTable("committee_validators")
+	query := fmt.Sprintf(`
+		CREATE TABLE IF NOT EXISTS %s (
 			committee_id BIGINT NOT NULL,                  -- UInt64 -> BIGINT
 			validator_address TEXT NOT NULL,               -- CrossChainRename: address
 			staked_amount BIGINT NOT NULL DEFAULT 0,
@@ -47,12 +49,12 @@ func (db *DB) initCommitteeValidators(ctx context.Context) error {
 			PRIMARY KEY (committee_id, validator_address, height)
 		);
 
-		CREATE INDEX IF NOT EXISTS idx_committee_validators_height ON committee_validators(height);
-		CREATE INDEX IF NOT EXISTS idx_committee_validators_address ON committee_validators(validator_address);
-	`
+		CREATE INDEX IF NOT EXISTS idx_committee_validators_height ON %s(height);
+		CREATE INDEX IF NOT EXISTS idx_committee_validators_address ON %s(validator_address);
+	`, committeeValidatorsTable, committeeValidatorsTable, committeeValidatorsTable)
 
 	db.Logger.Debug("Executing SQL for committee_validators table",
-		zap.String("table", "committee_validators"),
+		zap.String("table", committeeValidatorsTable),
 		zap.String("database", db.Name),
 		zap.Uint64("chain_id", db.ChainID),
 		zap.String("sql", query),
@@ -68,8 +70,9 @@ func (db *DB) initCommitteeValidators(ctx context.Context) error {
 // initCommitteePayments creates the committee_payments table matching indexer.CommitteePayment
 // This matches pkg/db/models/indexer/committee_payment.go:25-31 (5 fields)
 func (db *DB) initCommitteePayments(ctx context.Context) error {
-	query := `
-		CREATE TABLE IF NOT EXISTS %s.committee_payments (
+	committeePaymentsTable := db.SchemaTable("committee_payments")
+	query := fmt.Sprintf(`
+		CREATE TABLE IF NOT EXISTS %s (
 			committee_id BIGINT NOT NULL,                  -- UInt64 -> BIGINT
 			address TEXT NOT NULL,
 			percent BIGINT NOT NULL DEFAULT 0,             -- UInt64 -> BIGINT
@@ -78,9 +81,9 @@ func (db *DB) initCommitteePayments(ctx context.Context) error {
 			PRIMARY KEY (committee_id, address, height)
 		);
 
-		CREATE INDEX IF NOT EXISTS idx_committee_payments_height ON committee_payments(height);
-		CREATE INDEX IF NOT EXISTS idx_committee_payments_address ON committee_payments(address);
-	`
+		CREATE INDEX IF NOT EXISTS idx_committee_payments_height ON %s(height);
+		CREATE INDEX IF NOT EXISTS idx_committee_payments_address ON %s(address);
+	`, committeePaymentsTable, committeePaymentsTable, committeePaymentsTable)
 
 	return db.Exec(ctx, query)
 }
