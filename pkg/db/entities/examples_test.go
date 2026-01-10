@@ -102,7 +102,7 @@ func Example_workflowUsage() {
 	// Promoting pool_points_by_holder at height 1000
 	// Promoting params at height 1000
 	// Promoting validators at height 1000
-	// Promoting validator_signing_info at height 1000
+	// Promoting validator_non_signing_info at height 1000
 	// Promoting validator_double_signing_info at height 1000
 	// Promoting committees at height 1000
 	// Promoting committee_validators at height 1000
