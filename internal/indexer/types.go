@@ -4,6 +4,7 @@ import (
 	"time"
 
 	indexermodels "github.com/canopy-network/canopy-indexer/pkg/db/models/indexer"
+	"github.com/canopy-network/canopy/fsm"
 )
 
 // BlockData holds all converted data ready for database insertion.
@@ -15,12 +16,13 @@ type BlockData struct {
 	BlockTime time.Time
 
 	// Core entities
-	Block        *indexermodels.Block
-	Transactions []*indexermodels.Transaction
-	Events       []*indexermodels.Event
-	Accounts     []*indexermodels.Account
-	Params       *indexermodels.Params
-	Supply       *indexermodels.Supply
+	Block            *indexermodels.Block
+	Transactions     []*indexermodels.Transaction
+	Events           []*indexermodels.Event
+	Accounts         []*indexermodels.Account
+	AccountsPrevious []*fsm.Account // For change detection
+	Params           *indexermodels.Params
+	Supply           *indexermodels.Supply
 
 	// Validators (change-detected)
 	Validators                 []*indexermodels.Validator

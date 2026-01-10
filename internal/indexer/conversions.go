@@ -2,6 +2,7 @@ package indexer
 
 import (
 	"encoding/json"
+	"fmt"
 	"strconv"
 	"time"
 
@@ -23,6 +24,7 @@ import (
 func ConvertValidatorsWithChangeDetection(
 	current, previous []*fsm.Validator,
 	events []*lib.Event,
+	subsidizedCommittees, retiredCommittees []uint64,
 	height uint64,
 	blockTime time.Time,
 ) ([]*indexermodels.Validator, []*indexermodels.CommitteeValidator) {
@@ -34,6 +36,16 @@ func ConvertValidatorsWithChangeDetection(
 
 	// Parse lifecycle events for event correlation
 	pauseEvents, beginUnstakingEvents, slashEvents, rewardEvents := parseValidatorLifecycleEvents(events)
+
+	// Build subsidized/retired committee maps for O(1) lookup
+	subsidizedMap := make(map[uint64]bool, len(subsidizedCommittees))
+	for _, id := range subsidizedCommittees {
+		subsidizedMap[id] = true
+	}
+	retiredMap := make(map[uint64]bool, len(retiredCommittees))
+	for _, id := range retiredCommittees {
+		retiredMap[id] = true
+	}
 
 	var validators []*indexermodels.Validator
 	var committeeValidators []*indexermodels.CommitteeValidator
@@ -120,6 +132,8 @@ func ConvertValidatorsWithChangeDetection(
 					Status:           status,
 					Delegate:         curr.Delegate,
 					Compound:         curr.Compound,
+					Subsidized:       subsidizedMap[committeeID],
+					Retired:          retiredMap[committeeID],
 					Height:           height,
 					HeightTime:       blockTime,
 				})
@@ -845,13 +859,22 @@ func poolHolderKey(poolID uint64, address string) string {
 
 // convertBlock converts lib.BlockResult to indexermodels.Block
 func convertBlock(block *lib.BlockResult, chainID uint64, blockTime time.Time) *indexermodels.Block {
-	tb := transform.BlockFromResult(block)
+	h := block.BlockHeader
 	return &indexermodels.Block{
-		Height:          tb.Height,
-		Hash:            tb.Hash,
-		ProposerAddress: tb.ProposerAddress,
-		TotalTxs:        tb.TotalTxs,
-		NumTxs:          tb.NumTxs,
+		Height:             h.Height,
+		Hash:               transform.BytesToHex(h.Hash),
+		Time:               blockTime,
+		NetworkID:          uint32(chainID),
+		LastBlockHash:      transform.BytesToHex(h.LastBlockHash),
+		ProposerAddress:    transform.BytesToHex(h.ProposerAddress),
+		Size:               int32(block.Meta.Size),
+		NumTxs:             h.NumTxs,
+		TotalTxs:           h.TotalTxs,
+		TotalVDFIterations: int32(h.TotalVdfIterations),
+		StateRoot:          transform.BytesToHex(h.StateRoot),
+		TransactionRoot:    transform.BytesToHex(h.TransactionRoot),
+		ValidatorRoot:      transform.BytesToHex(h.ValidatorRoot),
+		NextValidatorRoot:  transform.BytesToHex(h.NextValidatorRoot),
 	}
 }
 
@@ -899,6 +922,53 @@ func convertAccounts(accounts []*fsm.Account, height uint64, blockTime time.Time
 	return result
 }
 
+// ConvertAccountsWithChangeDetection compares accounts at height H against H-1
+// and returns only changed accounts. This implements snapshot-on-change to minimize writes.
+func ConvertAccountsWithChangeDetection(
+	current, previous []*fsm.Account,
+	height uint64,
+	blockTime time.Time,
+) []*indexermodels.Account {
+	// Build previous account map for O(1) lookup
+	prevMap := make(map[string]*fsm.Account, len(previous))
+	for _, acc := range previous {
+		prevMap[transform.BytesToHex(acc.Address)] = acc
+	}
+
+	var results []*indexermodels.Account
+
+	for _, curr := range current {
+		addrHex := transform.BytesToHex(curr.Address)
+		prev := prevMap[addrHex]
+
+		// Check if changed
+		changed := false
+
+		// New account
+		if prev == nil {
+			changed = true
+		} else {
+			// Compare amount (rewards and slashes are TODO)
+			if curr.Amount != prev.Amount {
+				changed = true
+			}
+		}
+
+		if changed {
+			results = append(results, &indexermodels.Account{
+				Address:    addrHex,
+				Amount:     curr.Amount,
+				Rewards:    0, // TODO: aggregate from reward events
+				Slashes:    0, // TODO: aggregate from slash events
+				Height:     height,
+				HeightTime: blockTime,
+			})
+		}
+	}
+
+	return results
+}
+
 // convertPools converts []*fsm.Pool to []*indexermodels.Pool with delta calculations
 func convertPools(current []*fsm.Pool, previous []*fsm.Pool, height uint64, blockTime time.Time) []*indexermodels.Pool {
 	// Build previous pools map for O(1) delta calculation
@@ -907,9 +977,10 @@ func convertPools(current []*fsm.Pool, previous []*fsm.Pool, height uint64, bloc
 		prevMap[p.Id] = p
 	}
 
-	result := make([]*indexermodels.Pool, len(current))
-	for i, pool := range current {
-		result[i] = &indexermodels.Pool{
+	var result []*indexermodels.Pool
+
+	for _, pool := range current {
+		poolModel := &indexermodels.Pool{
 			PoolID:      uint32(pool.Id),
 			Height:      height,
 			HeightTime:  blockTime,
@@ -918,31 +989,52 @@ func convertPools(current []*fsm.Pool, previous []*fsm.Pool, height uint64, bloc
 		}
 
 		// Calculate H-1 deltas by comparing with previous pool state
+		changed := false
 		if prevPool, exists := prevMap[pool.Id]; exists {
 			// Pool existed at H-1, calculate deltas
-			result[i].AmountDelta = int64(pool.Amount) - int64(prevPool.Amount)
-			result[i].TotalPointsDelta = int64(pool.TotalPoolPoints) - int64(prevPool.TotalPoolPoints)
+			poolModel.AmountDelta = int64(pool.Amount) - int64(prevPool.Amount)
+			poolModel.TotalPointsDelta = int64(pool.TotalPoolPoints) - int64(prevPool.TotalPoolPoints)
 
 			// Calculate LP count delta (need to count Points array)
 			currentLPCount := uint16(len(pool.Points))
 			prevLPCount := uint16(len(prevPool.Points))
-			result[i].LPCountDelta = int16(currentLPCount) - int16(prevLPCount)
-			result[i].LPCount = currentLPCount
+			poolModel.LPCountDelta = int16(currentLPCount) - int16(prevLPCount)
+			poolModel.LPCount = currentLPCount
+
+			// Changed if any delta != 0
+			if poolModel.AmountDelta != 0 || poolModel.TotalPointsDelta != 0 || poolModel.LPCountDelta != 0 {
+				changed = true
+			}
 		} else {
-			// New pool at height H, deltas are zero
-			result[i].AmountDelta = 0
-			result[i].TotalPointsDelta = 0
-			result[i].LPCountDelta = 0
-			result[i].LPCount = uint16(len(pool.Points))
+			// New pool at height H
+			poolModel.AmountDelta = 0
+			poolModel.TotalPointsDelta = 0
+			poolModel.LPCountDelta = 0
+			poolModel.LPCount = uint16(len(pool.Points))
+			changed = true
 		}
 
-		// Calculate derived pool IDs (committee-based addressing)
-		chainID := transform.ExtractChainIDFromPoolID(pool.Id)
-		result[i].ChainID = uint16(chainID)
-		result[i].LiquidityPoolID = uint32(transform.LiquidityPoolAddend + chainID)
+		if changed {
+			// Calculate derived pool IDs (committee-based addressing)
+			chainID := transform.ExtractChainIDFromPoolID(pool.Id)
+			poolModel.ChainID = uint16(chainID)
+			poolModel.LiquidityPoolID = uint32(transform.LiquidityPoolAddend + chainID)
+			result = append(result, poolModel)
+		}
 	}
 
 	return result
+}
+
+// determineOrderStatus determines the order status based on order state.
+// Orders with buyer addresses set are "locked", otherwise "open".
+// Note: "complete" and "canceled" statuses are determined by order removal from state.
+func determineOrderStatus(order *lib.SellOrder) string {
+	// If buyer addresses are set, the order is locked
+	if len(order.BuyerSendAddress) > 0 && len(order.BuyerReceiveAddress) > 0 {
+		return "locked"
+	}
+	return "open"
 }
 
 // convertOrders converts []*lib.SellOrder to []*indexermodels.Order
@@ -960,6 +1052,64 @@ func convertOrders(orders []*lib.SellOrder, height uint64, blockTime time.Time) 
 	return result
 }
 
+// ConvertOrdersWithChangeDetection compares orders at height H against H-1
+// and returns only changed orders. This implements snapshot-on-change to minimize writes.
+func ConvertOrdersWithChangeDetection(
+	current, previous []*lib.SellOrder,
+	height uint64,
+	blockTime time.Time,
+) []*indexermodels.Order {
+	// Build previous order map for O(1) lookup (key by Id)
+	prevMap := make(map[string]*lib.SellOrder, len(previous))
+	for _, order := range previous {
+		prevMap[transform.BytesToHex(order.Id)] = order
+	}
+
+	var results []*indexermodels.Order
+
+	for _, curr := range current {
+		idHex := transform.BytesToHex(curr.Id)
+		prev := prevMap[idHex]
+
+		// Check if changed
+		changed := false
+
+		// New order
+		if prev == nil {
+			changed = true
+		} else {
+			// Compare key fields that can change
+			if curr.AmountForSale != prev.AmountForSale ||
+				curr.RequestedAmount != prev.RequestedAmount ||
+				curr.BuyerChainDeadline != prev.BuyerChainDeadline ||
+				transform.BytesToHex(curr.BuyerSendAddress) != transform.BytesToHex(prev.BuyerSendAddress) ||
+				transform.BytesToHex(curr.BuyerReceiveAddress) != transform.BytesToHex(prev.BuyerReceiveAddress) {
+				changed = true
+			}
+		}
+
+		if changed {
+			results = append(results, &indexermodels.Order{
+				OrderID:              idHex,
+				Committee:            uint16(curr.Committee),
+				Data:                 transform.BytesToHex(curr.Data),
+				AmountForSale:        curr.AmountForSale,
+				RequestedAmount:      curr.RequestedAmount,
+				SellerReceiveAddress: transform.BytesToHex(curr.SellerReceiveAddress),
+				BuyerSendAddress:     transform.BytesToHex(curr.BuyerSendAddress),
+				BuyerReceiveAddress:  transform.BytesToHex(curr.BuyerReceiveAddress),
+				BuyerChainDeadline:   curr.BuyerChainDeadline,
+				SellersSendAddress:   transform.BytesToHex(curr.SellersSendAddress),
+				Status:               determineOrderStatus(curr),
+				Height:               height,
+				HeightTime:           blockTime,
+			})
+		}
+	}
+
+	return results
+}
+
 // convertDexPrices converts []*lib.DexPrice to []*indexermodels.DexPrice
 func convertDexPrices(prices []*lib.DexPrice, height uint64, blockTime time.Time) []*indexermodels.DexPrice {
 	result := make([]*indexermodels.DexPrice, len(prices))
@@ -973,6 +1123,68 @@ func convertDexPrices(prices []*lib.DexPrice, height uint64, blockTime time.Time
 	return result
 }
 
+// ConvertDexPricesWithChangeDetection compares DEX prices at height H against H-1
+// and returns only changed prices. This implements snapshot-on-change to minimize writes.
+func ConvertDexPricesWithChangeDetection(
+	current, previous []*lib.DexPrice,
+	height uint64,
+	blockTime time.Time,
+) []*indexermodels.DexPrice {
+	// Build previous price map for O(1) lookup (key by "local-remote")
+	prevMap := make(map[string]*lib.DexPrice, len(previous))
+	for _, price := range previous {
+		key := fmt.Sprintf("%d-%d", price.LocalChainId, price.RemoteChainId)
+		prevMap[key] = price
+	}
+
+	var results []*indexermodels.DexPrice
+
+	for _, curr := range current {
+		key := fmt.Sprintf("%d-%d", curr.LocalChainId, curr.RemoteChainId)
+		prev := prevMap[key]
+
+		// Check if changed
+		changed := false
+
+		// New price
+		if prev == nil {
+			changed = true
+		} else {
+			// Compare price and pool amounts
+			if curr.E6ScaledPrice != prev.E6ScaledPrice ||
+				curr.LocalPool != prev.LocalPool ||
+				curr.RemotePool != prev.RemotePool {
+				changed = true
+			}
+		}
+
+		if changed {
+			// Calculate deltas
+			var priceDelta, localPoolDelta, remotePoolDelta int64
+			if prev != nil {
+				priceDelta = int64(curr.E6ScaledPrice) - int64(prev.E6ScaledPrice)
+				localPoolDelta = int64(curr.LocalPool) - int64(prev.LocalPool)
+				remotePoolDelta = int64(curr.RemotePool) - int64(prev.RemotePool)
+			}
+
+			results = append(results, &indexermodels.DexPrice{
+				LocalChainID:    uint16(curr.LocalChainId),
+				RemoteChainID:   uint16(curr.RemoteChainId),
+				LocalPool:       curr.LocalPool,
+				RemotePool:      curr.RemotePool,
+				PriceE6:         curr.E6ScaledPrice,
+				PriceDelta:      priceDelta,
+				LocalPoolDelta:  localPoolDelta,
+				RemotePoolDelta: remotePoolDelta,
+				Height:          height,
+				HeightTime:      blockTime,
+			})
+		}
+	}
+
+	return results
+}
+
 // convertParams converts *fsm.Params to *indexermodels.Params
 func convertParams(params *fsm.Params, height uint64, blockTime time.Time) *indexermodels.Params {
 	if params == nil {
@@ -983,6 +1195,147 @@ func convertParams(params *fsm.Params, height uint64, blockTime time.Time) *inde
 		HeightTime: blockTime,
 		// Add param fields
 	}
+}
+
+// ConvertParamsWithChangeDetection compares params at height H against H-1
+// and returns params only if changed. Since params rarely change, this minimizes writes.
+func ConvertParamsWithChangeDetection(
+	current, previous *fsm.Params,
+	height uint64,
+	blockTime time.Time,
+) *indexermodels.Params {
+	if current == nil {
+		return nil
+	}
+
+	// Convert current params using transform helper
+	currentConverted := transform.ParamsFromFSM(current)
+	if currentConverted == nil {
+		return nil
+	}
+
+	// If no previous, always snapshot
+	if previous == nil {
+		result := fsmParamsToIndexerParams(currentConverted, height, blockTime)
+		return result
+	}
+
+	// Compare with previous params
+	previousConverted := transform.ParamsFromFSM(previous)
+	if previousConverted == nil || paramsChanged(currentConverted, previousConverted) {
+		return fsmParamsToIndexerParams(currentConverted, height, blockTime)
+	}
+
+	// No change
+	return nil
+}
+
+// fsmParamsToIndexerParams converts transform.Params to indexermodels.Params
+func fsmParamsToIndexerParams(p *transform.Params, height uint64, blockTime time.Time) *indexermodels.Params {
+	return &indexermodels.Params{
+		Height:                       height,
+		HeightTime:                   blockTime,
+		BlockSize:                    p.BlockSize,
+		ProtocolVersion:              p.ProtocolVersion,
+		RootChainID:                  uint16(p.RootChainID),
+		Retired:                      0, // Retired status handled separately
+		UnstakingBlocks:              p.UnstakingBlocks,
+		MaxPauseBlocks:               p.MaxPauseBlocks,
+		DoubleSignSlashPercentage:    p.DoubleSignSlashPercentage,
+		NonSignSlashPercentage:       p.NonSignSlashPercentage,
+		MaxNonSign:                   p.MaxNonSign,
+		NonSignWindow:                p.NonSignWindow,
+		MaxCommittees:                p.MaxCommittees,
+		MaxCommitteeSize:             p.MaxCommitteeSize,
+		EarlyWithdrawalPenalty:       p.EarlyWithdrawalPenalty,
+		DelegateUnstakingBlocks:      p.DelegateUnstakingBlocks,
+		MinimumOrderSize:             p.MinimumOrderSize,
+		StakePercentForSubsidized:    p.StakePercentForSubsidizedCommittee,
+		MaxSlashPerCommittee:         p.MaxSlashPerCommittee,
+		DelegateRewardPercentage:     p.DelegateRewardPercentage,
+		BuyDeadlineBlocks:            p.BuyDeadlineBlocks,
+		LockOrderFeeMultiplier:       p.LockOrderFeeMultiplier,
+		MinimumStakeForValidators:    p.MinimumStakeForValidators,
+		MinimumStakeForDelegates:     p.MinimumStakeForDelegates,
+		MaximumDelegatesPerCommittee: p.MaximumDelegatesPerCommittee,
+		SendFee:                      p.SendFee,
+		StakeFee:                     p.StakeFee,
+		EditStakeFee:                 p.EditStakeFee,
+		UnstakeFee:                   p.UnstakeFee,
+		PauseFee:                     p.PauseFee,
+		UnpauseFee:                   p.UnpauseFee,
+		ChangeParameterFee:           p.ChangeParameterFee,
+		DaoTransferFee:               p.DaoTransferFee,
+		CertificateResultsFee:        p.CertificateResultsFee,
+		SubsidyFee:                   p.SubsidyFee,
+		CreateOrderFee:               p.CreateOrderFee,
+		EditOrderFee:                 p.EditOrderFee,
+		DeleteOrderFee:               p.DeleteOrderFee,
+		DexLimitOrderFee:             p.DexLimitOrderFee,
+		DexLiquidityDepositFee:       p.DexLiquidityDepositFee,
+		DexLiquidityWithdrawFee:      p.DexLiquidityWithdrawFee,
+		DaoRewardPercentage:          p.DaoRewardPercentage,
+	}
+}
+
+// paramsChanged compares two Params structs and returns true if any field differs
+func paramsChanged(current, previous *transform.Params) bool {
+	// Compare consensus params
+	if current.BlockSize != previous.BlockSize ||
+		current.ProtocolVersion != previous.ProtocolVersion ||
+		current.RootChainID != previous.RootChainID {
+		return true
+	}
+
+	// Compare validator params
+	if current.UnstakingBlocks != previous.UnstakingBlocks ||
+		current.MaxPauseBlocks != previous.MaxPauseBlocks ||
+		current.DoubleSignSlashPercentage != previous.DoubleSignSlashPercentage ||
+		current.NonSignSlashPercentage != previous.NonSignSlashPercentage ||
+		current.MaxNonSign != previous.MaxNonSign ||
+		current.NonSignWindow != previous.NonSignWindow ||
+		current.MaxCommittees != previous.MaxCommittees ||
+		current.MaxCommitteeSize != previous.MaxCommitteeSize ||
+		current.EarlyWithdrawalPenalty != previous.EarlyWithdrawalPenalty ||
+		current.DelegateUnstakingBlocks != previous.DelegateUnstakingBlocks ||
+		current.MinimumOrderSize != previous.MinimumOrderSize ||
+		current.StakePercentForSubsidizedCommittee != previous.StakePercentForSubsidizedCommittee ||
+		current.MaxSlashPerCommittee != previous.MaxSlashPerCommittee ||
+		current.DelegateRewardPercentage != previous.DelegateRewardPercentage ||
+		current.BuyDeadlineBlocks != previous.BuyDeadlineBlocks ||
+		current.LockOrderFeeMultiplier != previous.LockOrderFeeMultiplier ||
+		current.MinimumStakeForValidators != previous.MinimumStakeForValidators ||
+		current.MinimumStakeForDelegates != previous.MinimumStakeForDelegates ||
+		current.MaximumDelegatesPerCommittee != previous.MaximumDelegatesPerCommittee {
+		return true
+	}
+
+	// Compare fee params
+	if current.SendFee != previous.SendFee ||
+		current.StakeFee != previous.StakeFee ||
+		current.EditStakeFee != previous.EditStakeFee ||
+		current.UnstakeFee != previous.UnstakeFee ||
+		current.PauseFee != previous.PauseFee ||
+		current.UnpauseFee != previous.UnpauseFee ||
+		current.ChangeParameterFee != previous.ChangeParameterFee ||
+		current.DaoTransferFee != previous.DaoTransferFee ||
+		current.CertificateResultsFee != previous.CertificateResultsFee ||
+		current.SubsidyFee != previous.SubsidyFee ||
+		current.CreateOrderFee != previous.CreateOrderFee ||
+		current.EditOrderFee != previous.EditOrderFee ||
+		current.DeleteOrderFee != previous.DeleteOrderFee ||
+		current.DexLimitOrderFee != previous.DexLimitOrderFee ||
+		current.DexLiquidityDepositFee != previous.DexLiquidityDepositFee ||
+		current.DexLiquidityWithdrawFee != previous.DexLiquidityWithdrawFee {
+		return true
+	}
+
+	// Compare governance params
+	if current.DaoRewardPercentage != previous.DaoRewardPercentage {
+		return true
+	}
+
+	return false
 }
 
 // convertSupply converts *fsm.Supply to *indexermodels.Supply
@@ -999,6 +1352,45 @@ func convertSupply(supply *fsm.Supply, height uint64, blockTime time.Time) *inde
 	}
 }
 
+// ConvertSupplyWithChangeDetection compares supply at height H against H-1
+// and returns supply only if changed. Since supply changes with staking activity, this minimizes writes.
+func ConvertSupplyWithChangeDetection(
+	current, previous *fsm.Supply,
+	height uint64,
+	blockTime time.Time,
+) *indexermodels.Supply {
+	if current == nil {
+		return nil
+	}
+
+	// If no previous, always snapshot
+	if previous == nil {
+		return &indexermodels.Supply{
+			Height:        height,
+			HeightTime:    blockTime,
+			Total:         current.Total,
+			Staked:        current.Staked,
+			DelegatedOnly: current.DelegatedOnly,
+		}
+	}
+
+	// Compare supply fields
+	if current.Total != previous.Total ||
+		current.Staked != previous.Staked ||
+		current.DelegatedOnly != previous.DelegatedOnly {
+		return &indexermodels.Supply{
+			Height:        height,
+			HeightTime:    blockTime,
+			Total:         current.Total,
+			Staked:        current.Staked,
+			DelegatedOnly: current.DelegatedOnly,
+		}
+	}
+
+	// No change
+	return nil
+}
+
 // convertCommittees converts []*lib.CommitteeData to []*indexermodels.Committee
 func convertCommittees(committees []*lib.CommitteeData, height uint64, blockTime time.Time) []*indexermodels.Committee {
 	result := make([]*indexermodels.Committee, len(committees))
@@ -1010,4 +1402,55 @@ func convertCommittees(committees []*lib.CommitteeData, height uint64, blockTime
 		}
 	}
 	return result
+}
+
+// ConvertCommitteesWithChangeDetection compares committees at height H against H-1
+// and returns only changed committees. This implements snapshot-on-change to minimize writes.
+func ConvertCommitteesWithChangeDetection(
+	current, previous []*lib.CommitteeData,
+	height uint64,
+	blockTime time.Time,
+) []*indexermodels.Committee {
+	// Build previous committee map for O(1) lookup (key by ChainId)
+	prevMap := make(map[uint64]*lib.CommitteeData, len(previous))
+	for _, committee := range previous {
+		prevMap[committee.ChainId] = committee
+	}
+
+	var results []*indexermodels.Committee
+
+	for _, curr := range current {
+		prev := prevMap[curr.ChainId]
+
+		// Check if changed
+		changed := false
+
+		// New committee
+		if prev == nil {
+			changed = true
+		} else {
+			// Compare key fields
+			if curr.LastRootHeightUpdated != prev.LastRootHeightUpdated ||
+				curr.LastChainHeightUpdated != prev.LastChainHeightUpdated ||
+				curr.NumberOfSamples != prev.NumberOfSamples {
+				changed = true
+			}
+			// TODO: Compare PaymentPercents if needed
+		}
+
+		if changed {
+			results = append(results, &indexermodels.Committee{
+				ChainID:                uint16(curr.ChainId),
+				LastRootHeightUpdated:  curr.LastRootHeightUpdated,
+				LastChainHeightUpdated: curr.LastChainHeightUpdated,
+				NumberOfSamples:        curr.NumberOfSamples,
+				Subsidized:             0, // Aggregate computed at block summary level
+				Retired:                0, // Aggregate computed at block summary level
+				Height:                 height,
+				HeightTime:             blockTime,
+			})
+		}
+	}
+
+	return results
 }
