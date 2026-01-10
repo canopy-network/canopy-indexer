@@ -1,4 +1,4 @@
-.PHONY: build build-linux build-backfill build-all run test clean migrate tilt \
+.PHONY: build build-linux build-backfill build-all run test clean migrate psql tilt \
 	docker-build docker-build-dev fmt lint generate show-progress show-stats \
 	backfill backfill-stats backfill-dry-run backfill-range backfill-fast show-gaps
 
@@ -33,6 +33,10 @@ clean:
 # Run database migrations (local postgres on 5434)
 migrate:
 	PGPASSWORD=canopy-indexer123 psql -h localhost -p 5434 -U canopy-indexer -d canopy-indexer -f migrations/001_initial.sql
+
+# Connect to psql (interactive)
+psql:
+	PGPASSWORD=canopy-indexer123 psql -h localhost -p 5434 -U canopy-indexer -d canopy-indexer
 
 # Reset database (drop and recreate)
 db-reset:

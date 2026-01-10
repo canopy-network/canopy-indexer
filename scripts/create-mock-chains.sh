@@ -15,6 +15,22 @@ echo "Creating chains..."
 echo "API URL: $API_BASE_URL"
 echo "RPC Mock Host: $RPC_MOCK_HOST"
 
+# Wait for API to be ready
+echo "Waiting for API to be ready..."
+for i in {1..30}; do
+    if curl -s -f "$API_BASE_URL/api/health" > /dev/null 2>&1; then
+        echo "API is ready"
+        break
+    fi
+    echo "Waiting for API... ($i/30)"
+    sleep 2
+done
+
+if ! curl -s -f "$API_BASE_URL/api/health" > /dev/null 2>&1; then
+    echo "API is not ready after 60 seconds, exiting"
+    exit 1
+fi
+
 # Function to create a chain via API
 create_chain() {
     local CHAIN_ID="$1"

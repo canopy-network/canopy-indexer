@@ -127,10 +127,10 @@ local_resource(
     auto_init=False,
 )
 
-# Seed chains using the create-mock-chains script
+# Add canopy nodes using the add-canopy-node script
 local_resource(
-    'seed-chains',
-    cmd='./scripts/create-mock-chains.sh',
+    'add-nodes',
+    cmd='./scripts/add-canopy-node.sh',
     labels=['database'],
     trigger_mode=TRIGGER_MODE_MANUAL,
     auto_init=False,
@@ -340,7 +340,7 @@ print("")
 print("🔧 Utility commands (trigger manually):")
 print("   • backfill-run: Restart backfill container")
 print("   • db-reset: DROP and RECREATE all databases (canopy-indexer, admin, chain_*)")
-print("   • seed-chains: Populate admin database with 100+ chains via API")
+print("   • add-nodes: Add canopy nodes via script")
 print("   • redis-clear: Clear Redis streams")
 print("   • show-progress: View indexing progress")
 print("   • show-stats: View table row counts")
