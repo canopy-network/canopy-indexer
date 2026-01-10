@@ -55,7 +55,7 @@ func New(ctx context.Context, logger *zap.Logger, dbName string, poolConfig ...*
 	retryConfig := retry.DefaultConfig()
 
 	// Get database URL from environment
-	dbURL := utils.Env("CANOPY_POSTGRES_URL", "postgres://localhost:5432/indexer")
+	dbURL := utils.Env("POSTGRES_URL", "postgres://localhost:5434/indexer")
 
 	// Parse the connection string to get config
 	config, err := pgxpool.ParseConfig(dbURL)

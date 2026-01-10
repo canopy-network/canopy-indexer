@@ -52,10 +52,9 @@ type Config struct {
 	ChainRediscoveryInterval time.Duration // Periodic chain rediscovery interval
 
 	// HTTP API
-	HTTPEnabled      bool
-	HTTPAddr         string
-	AdminToken       string
-	AdminPostgresURL string
+	HTTPEnabled bool
+	HTTPAddr    string
+	AdminToken  string
 }
 
 // Load loads configuration from environment variables.
@@ -185,13 +184,6 @@ func Load() (*Config, error) {
 	cfg.AdminToken = os.Getenv("ADMIN_TOKEN")
 	if cfg.AdminToken == "" {
 		cfg.AdminToken = "devtoken" // Default token for development
-	}
-
-	cfg.AdminPostgresURL = os.Getenv("ADMIN_POSTGRES_URL")
-
-	// Admin DB is required for dynamic chain discovery
-	if cfg.AdminPostgresURL == "" {
-		return nil, fmt.Errorf("ADMIN_POSTGRES_URL is required for chain discovery")
 	}
 
 	return cfg, nil
