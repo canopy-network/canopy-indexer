@@ -75,16 +75,38 @@ local_resource(
     auto_init=True,
 )
 
-# Database reset - clean slate (uses tilt trigger to preserve log streaming)
+# Database reset - complete clean slate (drops and recreates all databases)
 local_resource(
     'db-reset',
     cmd='''
-        echo "Stopping indexer..."
+        echo "Dropping and recreating all canopy-indexer databases..."
+        echo "Stopping all services..."
         docker stop canopy-indexer-indexer 2>/dev/null || true
+        docker stop canopy-indexer-backfill 2>/dev/null || true
 
-        echo "Resetting database..."
+        echo "Dropping and recreating databases..."
         export PGPASSWORD={pgpassword}
-        psql -h {pg_host} -p {pg_port} -U {pg_user} -d {pg_db} -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"
+
+        # Drop all canopy-indexer related databases with force
+        DATABASES=("canopy-indexer" "admin")
+        # Add any chain databases that might exist
+        CHAIN_DBS=$(psql -h {pg_host} -p {pg_port} -U {pg_user} -d postgres -tAc "
+            SELECT datname FROM pg_database WHERE datname LIKE 'chain_%'
+        " 2>/dev/null || echo "")
+
+        for db in $CHAIN_DBS; do
+            DATABASES+=("$db")
+        done
+
+        for db in "${{DATABASES[@]}}"; do
+            echo "Dropping database: $db"
+            psql -h {pg_host} -p {pg_port} -U {pg_user} -d postgres -c "DROP DATABASE IF EXISTS \\"$db\\" WITH (FORCE);" 2>/dev/null || true
+        done
+
+        # Recreate main database
+        echo "Creating database: {pg_db}"
+        psql -h {pg_host} -p {pg_port} -U {pg_user} -d postgres -c "CREATE DATABASE \\"{pg_db}\\";"
+
 
         echo "Running migrations..."
         psql -h {pg_host} -p {pg_port} -U {pg_user} -d {pg_db} -f migrations/001_initial.sql
@@ -92,7 +114,7 @@ local_resource(
         echo "Restarting indexer via Tilt..."
         tilt trigger --port 10370 indexer-compile
 
-        echo "Done!"
+        echo "Database reset complete! Services will restart automatically."
     '''.format(
         pgpassword=PGPASSWORD,
         pg_host=PG_HOST,
@@ -308,7 +330,7 @@ print("   • Backfill: indexes all 100 chains (runs automatically)")
 print("")
 print("🔧 Utility commands (trigger manually):")
 print("   • backfill-run: Restart backfill container")
-print("   • db-reset: Reset database and re-run migrations")
+print("   • db-reset: DROP and RECREATE all databases (canopy-indexer, admin, chain_*)")
 print("   • redis-clear: Clear Redis streams")
 print("   • show-progress: View indexing progress")
 print("   • show-stats: View table row counts")
