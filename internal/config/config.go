@@ -146,11 +146,6 @@ func Load() (*Config, error) {
 		}
 	}
 
-	// Admin DB is required for dynamic chain discovery
-	if cfg.AdminPostgresURL == "" {
-		return nil, fmt.Errorf("ADMIN_POSTGRES_URL is required for chain discovery")
-	}
-
 	// Default Canopy node for blob mode (can be overridden by WS_BLOB_URL)
 	if cfg.WSBlobURL == "" && cfg.WSBlobEnabled {
 		cfg.WSBlobURL = "http://host.docker.internal:50002"
@@ -175,6 +170,11 @@ func Load() (*Config, error) {
 	}
 
 	cfg.AdminPostgresURL = os.Getenv("ADMIN_POSTGRES_URL")
+
+	// Admin DB is required for dynamic chain discovery
+	if cfg.AdminPostgresURL == "" {
+		return nil, fmt.Errorf("ADMIN_POSTGRES_URL is required for chain discovery")
+	}
 
 	return cfg, nil
 }
