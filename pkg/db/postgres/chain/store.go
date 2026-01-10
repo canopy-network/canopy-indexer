@@ -52,81 +52,81 @@ func (db *DB) GetTableDataPaginated(ctx context.Context, tableName string, limit
 // Staging Methods (No-ops for Postgres - ACID transactions replace staging)
 // =============================================================================
 
-func (db *DB) InsertAccountsStaging(ctx context.Context, accounts []*indexermodels.Account) error {
+func (db *DB) InsertAccounts(ctx context.Context, accounts []*indexermodels.Account) error {
 	// Postgres has ACID transactions - no staging needed
 	// Direct insert with ON CONFLICT DO UPDATE for idempotency
 	return db.insertAccounts(ctx, db.Client.GetExecutor(ctx), accounts)
 }
 
-func (db *DB) InsertBlocksStaging(ctx context.Context, block *indexermodels.Block) error {
+func (db *DB) InsertBlocks(ctx context.Context, block *indexermodels.Block) error {
 	return db.insertBlock(ctx, db.Client.GetExecutor(ctx), block)
 }
 
-func (db *DB) InsertTransactionsStaging(ctx context.Context, txs []*indexermodels.Transaction) error {
+func (db *DB) InsertTransactions(ctx context.Context, txs []*indexermodels.Transaction) error {
 	return db.insertTransactions(ctx, db.Client.GetExecutor(ctx), txs)
 }
 
-func (db *DB) InsertBlockSummariesStaging(ctx context.Context, summary *indexermodels.BlockSummary) error {
+func (db *DB) InsertBlockSummaries(ctx context.Context, summary *indexermodels.BlockSummary) error {
 	return db.insertBlockSummary(ctx, db.Client.GetExecutor(ctx), summary)
 }
 
-func (db *DB) InsertEventsStaging(ctx context.Context, events []*indexermodels.Event) error {
+func (db *DB) InsertEvents(ctx context.Context, events []*indexermodels.Event) error {
 	return db.insertEvents(ctx, db.Client.GetExecutor(ctx), events)
 }
 
-func (db *DB) InsertDexPricesStaging(ctx context.Context, prices []*indexermodels.DexPrice) error {
+func (db *DB) InsertDexPrices(ctx context.Context, prices []*indexermodels.DexPrice) error {
 	return db.insertDexPrices(ctx, db.Client.GetExecutor(ctx), prices)
 }
 
-func (db *DB) InsertPoolsStaging(ctx context.Context, pools []*indexermodels.Pool) error {
+func (db *DB) InsertPools(ctx context.Context, pools []*indexermodels.Pool) error {
 	return db.insertPools(ctx, db.Client.GetExecutor(ctx), pools)
 }
 
-func (db *DB) InsertOrdersStaging(ctx context.Context, orders []*indexermodels.Order) error {
+func (db *DB) InsertOrders(ctx context.Context, orders []*indexermodels.Order) error {
 	return db.insertOrders(ctx, db.Client.GetExecutor(ctx), orders)
 }
 
-func (db *DB) InsertDexOrdersStaging(ctx context.Context, orders []*indexermodels.DexOrder) error {
+func (db *DB) InsertDexOrders(ctx context.Context, orders []*indexermodels.DexOrder) error {
 	return db.insertDexOrders(ctx, db.Client.GetExecutor(ctx), orders)
 }
 
-func (db *DB) InsertDexDepositsStaging(ctx context.Context, deposits []*indexermodels.DexDeposit) error {
+func (db *DB) InsertDexDeposits(ctx context.Context, deposits []*indexermodels.DexDeposit) error {
 	return db.insertDexDeposits(ctx, db.Client.GetExecutor(ctx), deposits)
 }
 
-func (db *DB) InsertDexWithdrawalsStaging(ctx context.Context, withdrawals []*indexermodels.DexWithdrawal) error {
+func (db *DB) InsertDexWithdrawals(ctx context.Context, withdrawals []*indexermodels.DexWithdrawal) error {
 	return db.insertDexWithdrawals(ctx, db.Client.GetExecutor(ctx), withdrawals)
 }
 
-func (db *DB) InsertPoolPointsByHolderStaging(ctx context.Context, holders []*indexermodels.PoolPointsByHolder) error {
+func (db *DB) InsertPoolPointsByHolder(ctx context.Context, holders []*indexermodels.PoolPointsByHolder) error {
 	return db.insertPoolPointsByHolder(ctx, db.Client.GetExecutor(ctx), holders)
 }
 
-func (db *DB) InsertParamsStaging(ctx context.Context, params *indexermodels.Params) error {
+func (db *DB) InsertParams(ctx context.Context, params *indexermodels.Params) error {
 	return db.insertParams(ctx, db.Client.GetExecutor(ctx), params)
 }
 
-func (db *DB) InsertValidatorsStaging(ctx context.Context, validators []*indexermodels.Validator) error {
+func (db *DB) InsertValidators(ctx context.Context, validators []*indexermodels.Validator) error {
 	return db.insertValidators(ctx, db.Client.GetExecutor(ctx), validators)
 }
 
-func (db *DB) InsertValidatorNonSigningInfoStaging(ctx context.Context, nonSigningInfos []*indexermodels.ValidatorNonSigningInfo) error {
+func (db *DB) InsertValidatorNonSigningInfo(ctx context.Context, nonSigningInfos []*indexermodels.ValidatorNonSigningInfo) error {
 	return db.insertValidatorNonSigningInfo(ctx, db.Client.GetExecutor(ctx), nonSigningInfos)
 }
 
-func (db *DB) InsertValidatorDoubleSigningInfoStaging(ctx context.Context, doubleSigningInfos []*indexermodels.ValidatorDoubleSigningInfo) error {
+func (db *DB) InsertValidatorDoubleSigningInfo(ctx context.Context, doubleSigningInfos []*indexermodels.ValidatorDoubleSigningInfo) error {
 	return db.insertValidatorDoubleSigningInfo(ctx, db.Client.GetExecutor(ctx), doubleSigningInfos)
 }
 
-func (db *DB) InsertCommitteesStaging(ctx context.Context, committees []*indexermodels.Committee) error {
+func (db *DB) InsertCommittees(ctx context.Context, committees []*indexermodels.Committee) error {
 	return db.insertCommittees(ctx, db.Client.GetExecutor(ctx), committees)
 }
 
-func (db *DB) InsertCommitteeValidatorsStaging(ctx context.Context, cvs []*indexermodels.CommitteeValidator) error {
+func (db *DB) InsertCommitteeValidators(ctx context.Context, cvs []*indexermodels.CommitteeValidator) error {
 	return db.insertCommitteeValidators(ctx, db.Client.GetExecutor(ctx), cvs)
 }
 
-func (db *DB) InsertCommitteePaymentsStaging(ctx context.Context, payments []*indexermodels.CommitteePayment) error {
+func (db *DB) InsertCommitteePayments(ctx context.Context, payments []*indexermodels.CommitteePayment) error {
 	return db.insertCommitteePayments(ctx, db.Client.GetExecutor(ctx), payments)
 }
 
@@ -138,7 +138,7 @@ func (db *DB) InsertProposalSnapshots(ctx context.Context, snapshots []*indexerm
 	return db.insertProposalSnapshots(ctx, db.Client.GetExecutor(ctx), snapshots)
 }
 
-func (db *DB) InsertSupplyStaging(ctx context.Context, supplies []*indexermodels.Supply) error {
+func (db *DB) InsertSupply(ctx context.Context, supplies []*indexermodels.Supply) error {
 	if len(supplies) == 0 {
 		return nil
 	}

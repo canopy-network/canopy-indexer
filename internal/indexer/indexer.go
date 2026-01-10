@@ -448,65 +448,65 @@ func (idx *Indexer) writeWithCanopyx(ctx context.Context, db *chain.DB, data *Ca
 		txCtx := db.WithTx(ctx, tx)
 
 		// Insert in dependency order
-		if err := db.InsertBlocksStaging(txCtx, data.Block); err != nil {
+		if err := db.InsertBlocks(txCtx, data.Block); err != nil {
 			return fmt.Errorf("insert block: %w", err)
 		}
-		if err := db.InsertTransactionsStaging(txCtx, data.Transactions); err != nil {
+		if err := db.InsertTransactions(txCtx, data.Transactions); err != nil {
 			return fmt.Errorf("insert transactions: %w", err)
 		}
-		if err := db.InsertEventsStaging(txCtx, data.Events); err != nil {
+		if err := db.InsertEvents(txCtx, data.Events); err != nil {
 			return fmt.Errorf("insert events: %w", err)
 		}
-		if err := db.InsertAccountsStaging(txCtx, data.Accounts); err != nil {
+		if err := db.InsertAccounts(txCtx, data.Accounts); err != nil {
 			return fmt.Errorf("insert accounts: %w", err)
 		}
-		if err := db.InsertValidatorsStaging(txCtx, data.Validators); err != nil {
+		if err := db.InsertValidators(txCtx, data.Validators); err != nil {
 			return fmt.Errorf("insert validators: %w", err)
 		}
-		if err := db.InsertValidatorNonSigningInfoStaging(txCtx, data.ValidatorNonSigningInfo); err != nil {
+		if err := db.InsertValidatorNonSigningInfo(txCtx, data.ValidatorNonSigningInfo); err != nil {
 			return fmt.Errorf("insert validator non-signing info: %w", err)
 		}
-		if err := db.InsertValidatorDoubleSigningInfoStaging(txCtx, data.ValidatorDoubleSigningInfo); err != nil {
+		if err := db.InsertValidatorDoubleSigningInfo(txCtx, data.ValidatorDoubleSigningInfo); err != nil {
 			return fmt.Errorf("insert validator double-signing info: %w", err)
 		}
-		if err := db.InsertPoolsStaging(txCtx, data.Pools); err != nil {
+		if err := db.InsertPools(txCtx, data.Pools); err != nil {
 			return fmt.Errorf("insert pools: %w", err)
 		}
-		if err := db.InsertOrdersStaging(txCtx, data.Orders); err != nil {
+		if err := db.InsertOrders(txCtx, data.Orders); err != nil {
 			return fmt.Errorf("insert orders: %w", err)
 		}
-		if err := db.InsertDexPricesStaging(txCtx, data.DexPrices); err != nil {
+		if err := db.InsertDexPrices(txCtx, data.DexPrices); err != nil {
 			return fmt.Errorf("insert dex prices: %w", err)
 		}
-		if err := db.InsertDexOrdersStaging(txCtx, data.DexOrders); err != nil {
+		if err := db.InsertDexOrders(txCtx, data.DexOrders); err != nil {
 			return fmt.Errorf("insert dex orders: %w", err)
 		}
-		if err := db.InsertDexDepositsStaging(txCtx, data.DexDeposits); err != nil {
+		if err := db.InsertDexDeposits(txCtx, data.DexDeposits); err != nil {
 			return fmt.Errorf("insert dex deposits: %w", err)
 		}
-		if err := db.InsertDexWithdrawalsStaging(txCtx, data.DexWithdrawals); err != nil {
+		if err := db.InsertDexWithdrawals(txCtx, data.DexWithdrawals); err != nil {
 			return fmt.Errorf("insert dex withdrawals: %w", err)
 		}
-		if err := db.InsertPoolPointsByHolderStaging(txCtx, data.PoolPointsByHolder); err != nil {
+		if err := db.InsertPoolPointsByHolder(txCtx, data.PoolPointsByHolder); err != nil {
 			return fmt.Errorf("insert pool points: %w", err)
 		}
 		if data.Params != nil {
-			if err := db.InsertParamsStaging(txCtx, data.Params); err != nil {
+			if err := db.InsertParams(txCtx, data.Params); err != nil {
 				return fmt.Errorf("insert params: %w", err)
 			}
 		}
 		if data.Supply != nil {
-			if err := db.InsertSupplyStaging(txCtx, []*indexermodels.Supply{data.Supply}); err != nil {
+			if err := db.InsertSupply(txCtx, []*indexermodels.Supply{data.Supply}); err != nil {
 				return fmt.Errorf("insert supply: %w", err)
 			}
 		}
-		if err := db.InsertCommitteesStaging(txCtx, data.Committees); err != nil {
+		if err := db.InsertCommittees(txCtx, data.Committees); err != nil {
 			return fmt.Errorf("insert committees: %w", err)
 		}
-		if err := db.InsertCommitteeValidatorsStaging(txCtx, data.CommitteeValidators); err != nil {
+		if err := db.InsertCommitteeValidators(txCtx, data.CommitteeValidators); err != nil {
 			return fmt.Errorf("insert committee validators: %w", err)
 		}
-		if err := db.InsertCommitteePaymentsStaging(txCtx, data.CommitteePayments); err != nil {
+		if err := db.InsertCommitteePayments(txCtx, data.CommitteePayments); err != nil {
 			return fmt.Errorf("insert committee payments: %w", err)
 		}
 
@@ -676,7 +676,7 @@ func (idx *Indexer) buildBlockSummary(ctx context.Context, db *chain.DB, data *C
 	}
 
 	// Insert block summary using chain database
-	return db.InsertBlockSummariesStaging(ctx, summary)
+	return db.InsertBlockSummaries(ctx, summary)
 }
 
 // convertToCanopyxModels applies change detection and converts to canopyx types
