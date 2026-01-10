@@ -268,7 +268,7 @@ func (b *Backfiller) indexBlockWithBlob(ctx context.Context, height uint64) erro
 func (b *Backfiller) CheckHealth(ctx context.Context) (*GapStats, error) {
 	endHeight, err := b.rpc.ChainHead(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("get chain head: %w", err)
+		return nil, fmt.Errorf("get chain head from %v: %w", b.rpc.Endpoints(), err)
 	}
 
 	startHeight := b.config.StartHeight
