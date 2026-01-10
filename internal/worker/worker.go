@@ -3,6 +3,7 @@ package worker
 import (
 	"context"
 	"encoding/binary"
+	"errors"
 	"log/slog"
 	"time"
 
@@ -100,6 +101,17 @@ func (w *Worker) handleBlock(msg *message.Message) error {
 
 	ctx := context.Background()
 	if err := w.indexer.IndexBlock(ctx, chainID, height); err != nil {
+		if errors.Is(err, indexer.ErrChainNotConfigured) {
+			// Chain not yet discovered - requeue with backoff
+			slog.Warn("worker chain not configured, requeuing",
+				"chain_id", chainID,
+				"height", height,
+				"msg_uuid", msgUUID,
+			)
+			time.Sleep(30 * time.Second) // longer backoff for rediscovery
+			return err
+		}
+
 		duration := time.Since(start)
 		slog.Error("worker indexing failed",
 			"chain_id", chainID,

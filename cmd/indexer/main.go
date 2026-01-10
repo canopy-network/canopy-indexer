@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/canopy-network/canopy-indexer/internal/api"
-	"github.com/canopy-network/canopy-indexer/internal/backfill"
 	"github.com/canopy-network/canopy-indexer/internal/config"
 	"github.com/canopy-network/canopy-indexer/internal/indexer"
 	"github.com/canopy-network/canopy-indexer/internal/listener"
@@ -18,7 +17,6 @@ import (
 	"github.com/canopy-network/canopy-indexer/pkg/blob"
 	"github.com/canopy-network/canopy-indexer/pkg/db/postgres"
 	"github.com/canopy-network/canopy-indexer/pkg/db/postgres/admin"
-	"github.com/canopy-network/canopy-indexer/pkg/rpc"
 	"github.com/canopy-network/canopy/fsm"
 	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
@@ -51,37 +49,11 @@ func main() {
 		slog.Error("failed to connect to admin database", "err", err)
 		os.Exit(1)
 	}
-	defer adminDB.Close()
-
-	// Discover chains dynamically
-	adminChains, err := adminDB.ListChain(ctx, false)
-	if err != nil {
-		slog.Error("failed to list chains from admin database", "err", err)
-		os.Exit(1)
-	}
-
-	// Filter and convert chains
-	var chains []config.ChainConfig
-	for _, chain := range adminChains {
-		if chain.Deleted == 1 || chain.Paused == 1 || len(chain.RPCEndpoints) == 0 {
-			continue
-		}
-		chains = append(chains, config.ChainConfig{
-			ChainID: chain.ChainID,
-			RPCURL:  chain.RPCEndpoints[0],
-		})
-	}
-
-	if len(chains) == 0 {
-		slog.Error("no active chains found in admin database")
-		os.Exit(1)
-	}
 
 	// Setup logging
 	setupLogging(cfg.LogLevel)
 
 	slog.Info("starting canopy-indexer",
-		"chains", len(chains),
 		"ws_enabled", cfg.WSEnabled,
 	)
 
@@ -105,16 +77,6 @@ func main() {
 	redisClient := redis.NewClient(redisOpts)
 	defer redisClient.Close()
 
-	// Create RPC clients for all chains
-	rpcClients := make(map[uint64]*rpc.HTTPClient)
-	for _, chain := range chains {
-		rpcClients[chain.ChainID] = rpc.NewHTTPWithOpts(rpc.Opts{
-			Endpoints: []string{chain.RPCURL},
-			RPS:       cfg.RPCRPS,
-			Burst:     cfg.RPCBurst,
-		})
-	}
-
 	// Create publisher
 	pub, err := publisher.New(redisClient, cfg.BlocksTopic)
 	if err != nil {
@@ -124,16 +86,12 @@ func main() {
 	defer pub.Close()
 
 	// Create indexer
-	idx, err := indexer.New(ctx, logger, chains[0].ChainID)
+	idx, err := indexer.New(ctx, logger, cfg, &client)
 	if err != nil {
 		slog.Error("failed to create indexer", "err", err)
 		os.Exit(1)
 	}
-
-	// Set RPC clients for all chains
-	for _, chain := range chains {
-		idx.SetRPCClient(chain.ChainID, rpcClients[chain.ChainID])
-	}
+	defer idx.Close()
 
 	// Create worker
 	wrk, err := worker.New(worker.Config{
@@ -206,17 +164,9 @@ func main() {
 		return wrk.Run(ctx)
 	})
 
-	// Optional: Periodic gap health check for all chains
-	if cfg.BackfillCheckInterval > 0 {
-		for _, chain := range chains {
-			chainID := chain.ChainID
-			rpcClient := rpcClients[chainID]
-			bf := backfill.New(rpcClient, &client, idx, chainID, nil)
-			g.Go(func() error {
-				return runPeriodicHealthCheck(ctx, bf, chainID, cfg.BackfillCheckInterval)
-			})
-		}
-	}
+	g.Go(func() error {
+		return runChainRediscovery(ctx, idx, cfg.ChainRediscoveryInterval)
+	})
 
 	if err := g.Wait(); err != nil && ctx.Err() == nil {
 		slog.Error("indexer error", "err", err)
@@ -224,6 +174,27 @@ func main() {
 	}
 
 	slog.Info("shutdown complete")
+}
+
+func runChainRediscovery(ctx context.Context, idx *indexer.Indexer, interval time.Duration) error {
+	// Run immediately on startup
+	if err := idx.Rediscover(ctx); err != nil {
+		slog.Warn("initial chain discovery failed", "error", err)
+	}
+
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		case <-ticker.C:
+			if err := idx.Rediscover(ctx); err != nil {
+				slog.Error("chain rediscovery failed", "error", err)
+			}
+		}
+	}
 }
 
 func setupLogging(level string) {
@@ -241,37 +212,6 @@ func setupLogging(level string) {
 
 	handler := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: lvl})
 	slog.SetDefault(slog.New(handler))
-}
-
-// runPeriodicHealthCheck runs a periodic gap health check for a specific chain.
-func runPeriodicHealthCheck(ctx context.Context, bf *backfill.Backfiller, chainID uint64, interval time.Duration) error {
-	slog.Info("starting periodic gap health check", "chain_id", chainID, "interval", interval)
-	ticker := time.NewTicker(interval)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ctx.Done():
-			return nil
-		case <-ticker.C:
-			stats, err := bf.CheckHealth(ctx)
-			if err != nil {
-				slog.Warn("gap health check failed", "chain_id", chainID, "err", err)
-				continue
-			}
-
-			if stats.TotalMissing > 0 {
-				slog.Warn("gaps detected during health check",
-					"chain_id", chainID,
-					"missing_blocks", stats.TotalMissing,
-					"first_missing", stats.FirstMissing,
-					"last_missing", stats.LastMissing,
-				)
-			} else {
-				slog.Debug("gap health check passed, no missing blocks", "chain_id", chainID)
-			}
-		}
-	}
 }
 
 // startWSListener starts a WebSocket listener for a single chain (when WS is enabled).

@@ -118,26 +118,26 @@ func main() {
 	}
 	defer client.Close()
 
-	// Create RPC clients for all chains
+	// Create indexer
+	idx, err := indexer.New(ctx, logger, cfg, &client)
+	if err != nil {
+		slog.Error("failed to create indexer", "err", err)
+		os.Exit(1)
+	}
+	defer idx.Close()
+
+	// Add chains to indexer and create RPC clients
 	rpcClients := make(map[uint64]*rpc.HTTPClient)
 	for _, chain := range chainsToBackfill {
+		if err := idx.AddChain(ctx, chain.ChainID, chain.RPCURL); err != nil {
+			slog.Error("failed to add chain to indexer", "chain_id", chain.ChainID, "err", err)
+			os.Exit(1)
+		}
 		rpcClients[chain.ChainID] = rpc.NewHTTPWithOpts(rpc.Opts{
 			Endpoints: []string{chain.RPCURL},
 			RPS:       cfg.RPCRPS,
 			Burst:     cfg.RPCBurst,
 		})
-	}
-
-	// Create indexer
-	idx, err := indexer.New(ctx, logger, chainsToBackfill[0].ChainID)
-	if err != nil {
-		slog.Error("failed to create indexer", "err", err)
-		os.Exit(1)
-	}
-
-	// Set RPC clients for all chains
-	for _, chain := range chainsToBackfill {
-		idx.SetRPCClient(chain.ChainID, rpcClients[chain.ChainID])
 	}
 
 	// Build backfill config

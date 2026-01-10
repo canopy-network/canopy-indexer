@@ -47,6 +47,9 @@ type Config struct {
 	// Backfill
 	BackfillCheckInterval time.Duration // Periodic gap check interval (0 = disabled)
 
+	// Chain Rediscovery
+	ChainRediscoveryInterval time.Duration // Periodic chain rediscovery interval
+
 	// HTTP API
 	HTTPEnabled      bool
 	HTTPAddr         string
@@ -144,6 +147,14 @@ func Load() (*Config, error) {
 		if d, err := time.ParseDuration(v); err == nil {
 			cfg.BackfillCheckInterval = d
 		}
+	}
+
+	if v := os.Getenv("CHAIN_REDISCOVERY_INTERVAL"); v != "" {
+		if d, err := time.ParseDuration(v); err == nil {
+			cfg.ChainRediscoveryInterval = d
+		}
+	} else {
+		cfg.ChainRediscoveryInterval = 30 * time.Second // Default 30 seconds
 	}
 
 	// Default Canopy node for blob mode (can be overridden by WS_BLOB_URL)
