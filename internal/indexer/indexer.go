@@ -126,6 +126,33 @@ func (idx *Indexer) IndexBlockWithData(ctx context.Context, data *blob.BlockData
 		return ErrChainNotConfigured
 	}
 
+	// Log incoming blob data summary
+	slog.Info("processing blob data",
+		"chain_id", data.ChainID,
+		"height", data.Height,
+		"num_txs", len(data.Transactions),
+		"num_events", len(data.Events),
+		"num_accounts", len(data.Accounts),
+	)
+
+	// Log account addresses and balances if present
+	if len(data.Accounts) > 0 {
+		slog.Info("accounts in blob",
+			"chain_id", data.ChainID,
+			"height", data.Height,
+			"count", len(data.Accounts),
+		)
+		for i, acc := range data.Accounts {
+			slog.Debug("account details",
+				"chain_id", data.ChainID,
+				"height", data.Height,
+				"index", i,
+				"address", fmt.Sprintf("%x", acc.Address),
+				"amount", acc.Amount,
+			)
+		}
+	}
+
 	// Convert BlockData to canopyx models (includes change detection)
 	canopyxData := idx.convertToCanopyxModels(data)
 
