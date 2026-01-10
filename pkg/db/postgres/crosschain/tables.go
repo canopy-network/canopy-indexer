@@ -4,21 +4,6 @@ import (
 	"context"
 )
 
-// initIndexProgress creates the index_progress table
-func (db *DB) initIndexProgress(ctx context.Context) error {
-	query := `
-		CREATE TABLE IF NOT EXISTS index_progress (
-			chain_id        BIGINT PRIMARY KEY,
-			last_height     BIGINT NOT NULL DEFAULT 0,
-			last_indexed_at TIMESTAMP WITH TIME ZONE,
-			created_at      TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-			updated_at      TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
-		)
-	`
-
-	return db.Exec(ctx, query)
-}
-
 // initBlocks creates the blocks table
 func (db *DB) initBlocks(ctx context.Context) error {
 	query := `

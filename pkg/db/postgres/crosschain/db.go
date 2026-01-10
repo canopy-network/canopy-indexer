@@ -103,7 +103,6 @@ func (db *DB) initTables(ctx context.Context) error {
 		name string
 		fn   func(context.Context) error
 	}{
-		{"index_progress", db.initIndexProgress},
 		{"blocks", db.initBlocks},
 		{"block_summaries", db.initBlockSummaries},
 		{"txs", db.initTransactions},

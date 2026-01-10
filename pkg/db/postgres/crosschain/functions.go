@@ -7,7 +7,6 @@ import (
 // initFunctions creates all PL/pgSQL functions
 func (db *DB) initFunctions(ctx context.Context) error {
 	functions := []func(context.Context) error{
-		db.createUpdateIndexProgressFunction,
 		db.createBuildBlockSummaryFunction,
 	}
 
@@ -18,27 +17,6 @@ func (db *DB) initFunctions(ctx context.Context) error {
 	}
 
 	return nil
-}
-
-// createUpdateIndexProgressFunction creates the update_index_progress function
-func (db *DB) createUpdateIndexProgressFunction(ctx context.Context) error {
-	query := `
-		CREATE OR REPLACE FUNCTION update_index_progress(
-			p_chain_id BIGINT,
-			p_height BIGINT
-		) RETURNS VOID AS $$
-		BEGIN
-			INSERT INTO index_progress (chain_id, last_height, last_indexed_at, updated_at)
-			VALUES (p_chain_id, p_height, NOW(), NOW())
-			ON CONFLICT (chain_id) DO UPDATE SET
-				last_height = GREATEST(index_progress.last_height, EXCLUDED.last_height),
-				last_indexed_at = NOW(),
-				updated_at = NOW();
-		END;
-		$$ LANGUAGE plpgsql;
-	`
-
-	return db.Exec(ctx, query)
 }
 
 // createBuildBlockSummaryFunction creates the build_block_summary function
