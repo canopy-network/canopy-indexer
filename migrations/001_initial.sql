@@ -12,18 +12,6 @@ CREATE TYPE dex_deposit_state AS ENUM ('pending', 'locked', 'complete');
 CREATE TYPE dex_withdrawal_state AS ENUM ('pending', 'locked', 'complete');
 
 -- ============================================================================
--- INDEXING PROGRESS
--- ============================================================================
-
-CREATE TABLE index_progress (
-    chain_id        BIGINT PRIMARY KEY,
-    last_height     BIGINT NOT NULL DEFAULT 0,
-    last_indexed_at TIMESTAMPTZ,
-    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
--- ============================================================================
 -- BLOCKS
 -- ============================================================================
 
@@ -726,21 +714,6 @@ CREATE TABLE tvl_snapshots (
 -- ============================================================================
 -- HELPER FUNCTIONS
 -- ============================================================================
-
--- Function to update index_progress
-CREATE OR REPLACE FUNCTION update_index_progress(
-    p_chain_id BIGINT,
-    p_height BIGINT
-) RETURNS VOID AS $$
-BEGIN
-    INSERT INTO index_progress (chain_id, last_height, last_indexed_at, updated_at)
-    VALUES (p_chain_id, p_height, NOW(), NOW())
-    ON CONFLICT (chain_id) DO UPDATE SET
-        last_height = GREATEST(index_progress.last_height, EXCLUDED.last_height),
-        last_indexed_at = NOW(),
-        updated_at = NOW();
-END;
-$$ LANGUAGE plpgsql;
 
 -- Build block summary from indexed data at height H
 -- Called after all indexers complete for a block

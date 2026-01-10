@@ -21,11 +21,12 @@ The Postgres backend implementation has been initiated with schema creation and 
    - **Status**: Production ready
 
 3. **CrossChain Store - Schema** (`pkg/db/postgres/crosschain/`)
-   - ✅ 22 tables created (matching 001_initial.sql)
+   - ✅ 21 tables created (matching 001_initial.sql)
    - ✅ 11 views for latest state (using DISTINCT ON)
-   - ✅ 2 PL/pgSQL functions (update_index_progress, build_block_summary)
+   - ✅ 1 PL/pgSQL function (build_block_summary)
    - ✅ 5 enum types
    - **Status**: Schema complete, query methods need implementation
+   - **Note**: index_progress table removed (centralized in admin database)
 
 ### ⚠️ Incomplete - Requires Schema Updates
 

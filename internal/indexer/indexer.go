@@ -110,7 +110,7 @@ func (idx *Indexer) IndexBlockWithData(ctx context.Context, data *blob.BlockData
 	}
 
 	// Record index progress
-	if err := idx.updateProgress(ctx, data.ChainID, data.Height); err != nil {
+	if err := idx.updateProgress(ctx, data.ChainID, data.Height, time.Since(start)); err != nil {
 		slog.Warn("failed to record index progress", "err", err)
 	}
 
@@ -124,8 +124,9 @@ func (idx *Indexer) IndexBlockWithData(ctx context.Context, data *blob.BlockData
 }
 
 // updateProgress updates the indexing progress for a chain.
-func (idx *Indexer) updateProgress(ctx context.Context, chainID, height uint64) error {
-	return idx.adminDB.Exec(ctx, `SELECT update_index_progress($1, $2)`, chainID, height)
+func (idx *Indexer) updateProgress(ctx context.Context, chainID, height uint64, duration time.Duration) error {
+	indexingTimeMs := float64(duration.Milliseconds())
+	return idx.adminDB.RecordIndexed(ctx, chainID, height, indexingTimeMs, "indexed")
 }
 
 // writeWithCanopyx implements transactional writes using canopyx database operations
