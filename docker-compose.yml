@@ -52,7 +52,12 @@ services:
     environment:
       POSTGRES_URL: "postgres://canopy-indexer:canopy-indexer123@postgres:5432/canopy-indexer?sslmode=disable"
       REDIS_URL: "redis://:canopy-redis-dev@redis:6379/0"
-      ADMIN_POSTGRES_URL: "postgres://canopy-indexer:canopy-indexer123@postgres:5432/canopy-indexer?sslmode=disable"
+      ADMIN_POSTGRES_URL: "postgres://canopy-indexer:canopy-indexer123@postgres:5432/admin?sslmode=disable"
+      HTTP_ENABLED: "true"
+      HTTP_ADDR: ":8080"
+      ADMIN_TOKEN: "devtoken"
+    ports:
+      - "8080:8080"
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:

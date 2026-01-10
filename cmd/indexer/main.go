@@ -8,6 +8,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/canopy-network/canopy-indexer/internal/api"
 	"github.com/canopy-network/canopy-indexer/internal/backfill"
 	"github.com/canopy-network/canopy-indexer/internal/config"
 	"github.com/canopy-network/canopy-indexer/internal/indexer"
@@ -150,6 +151,20 @@ func main() {
 
 	// Run all components
 	g, ctx := errgroup.WithContext(ctx)
+
+	// Start HTTP API server if enabled
+	if cfg.HTTPEnabled {
+		apiServer, err := api.NewServer(adminDB, logger, cfg.HTTPAddr, cfg.AdminToken)
+		if err != nil {
+			slog.Error("failed to create API server", "err", err)
+			os.Exit(1)
+		}
+
+		g.Go(func() error {
+			slog.Info("starting HTTP API server", "addr", cfg.HTTPAddr)
+			return apiServer.Run(ctx)
+		})
+	}
 
 	// WebSocket Blob Mode - receives IndexerBlob instead of just height
 	if cfg.WSBlobEnabled && cfg.WSBlobURL != "" {
