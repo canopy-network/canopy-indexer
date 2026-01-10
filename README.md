@@ -36,7 +36,7 @@ make run
 
 Chain endpoints are hardcoded in `internal/config/config.go` via the `MockChains()` function. By default, 100 mock chains are configured:
 - Chain IDs: 1000-1099
-- Ports: 60000-60099
+- Ports: 61000-61099
 - URL format: `http://rpc-mock:{port}`
 
 To modify the chain configuration, edit `MockChains()` in `internal/config/config.go`.
@@ -100,11 +100,11 @@ For local testing, `canopy-rpc-mock` provides deterministic blockchain data with
 tilt up
 ```
 
-The mock runs 100 chains (IDs 1000-1099) with 1000 pre-built blocks each on ports 60000-60099.
+The mock runs 100 chains (IDs 1000-1099) with 1000 pre-built blocks each on ports 61000-61099.
 
 ```bash
 # Verify mock is running
-curl http://localhost:60000/v1/query/height
+curl http://localhost:61000/v1/query/height
 # Returns: {"height":1000}
 
 # Query different chains

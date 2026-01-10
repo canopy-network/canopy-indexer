@@ -95,14 +95,14 @@ services:
       context: ../canopy-rpc-mock
       dockerfile: Dockerfile
     container_name: canopy-indexer-rpc-mock
-    command: ["-chains", "100", "-blocks", "100", "-start-port", "60000", "-start-chain-id", "1000"]
+    command: ["-chains", "100", "-blocks", "100", "-start-port", "61000", "-start-chain-id", "1000"]
     ports:
-      - "60000-60099:60000-60099"
+      - "61000-61099:61000-61099"
     networks:
       - canopy-indexer-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost:60000/v1/query/height"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:61000/v1/query/height"]
       interval: 10s
       timeout: 5s
       retries: 5

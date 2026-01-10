@@ -1,10 +1,34 @@
-# Tiltfile for canopy-indexer Development
-# Simple Docker Compose setup with hot-reload for Go indexer
+# Tiltfile for Canopy Development Environment
+# Integrated setup with blockchain nodes, indexer, and supporting services
+# Hot-reload enabled for all Go services
 
-print("🚀 Starting canopy-indexer Tilt Environment")
+print("🚀 Starting Canopy Full Stack Development Environment")
 
-# Load docker-compose file
+# =============================================================================
+# Configuration Constants
+# =============================================================================
+
+PGPASSWORD = "canopy-indexer123"
+DATABASE_URL = "postgres://canopy-indexer:canopy-indexer123@localhost:5434/canopy-indexer?sslmode=disable"
+PG_HOST = "localhost"
+PG_PORT = "5434"
+PG_USER = "canopy-indexer"
+PG_DB = "canopy-indexer"
+
+# =============================================================================
+# Helper Functions
+# =============================================================================
+
+def go_build(name, path, restart_container=None):
+    """Build a Go binary for Linux and optionally restart its container."""
+    cmd = 'CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o bin/{}-linux {}'.format(name, path)
+    if restart_container:
+        cmd += ' && docker restart {} 2>/dev/null || true'.format(restart_container)
+    return cmd
+
+# Load docker-compose files
 docker_compose('docker-compose.yml')
+docker_compose('docker-compose.blockchain.yml')
 
 # =============================================================================
 # Database Resources
@@ -24,20 +48,27 @@ local_resource(
     'db-migrate',
     cmd='''
         sleep 3
-        export PGPASSWORD=canopy-indexer123
-        export DATABASE_URL="postgres://canopy-indexer:canopy-indexer123@localhost:5434/canopy-indexer?sslmode=disable"
+        export PGPASSWORD={pgpassword}
+        export DATABASE_URL="{database_url}"
 
         # Check if tables exist
-        TABLE_COUNT=$(psql -h localhost -p 5434 -U canopy-indexer -d canopy-indexer -tAc "SELECT COUNT(*) FROM pg_tables WHERE schemaname='public'" 2>/dev/null || echo "0")
+        TABLE_COUNT=$(psql -h {pg_host} -p {pg_port} -U {pg_user} -d {pg_db} -tAc "SELECT COUNT(*) FROM pg_tables WHERE schemaname='public'" 2>/dev/null || echo "0")
 
         if [ "$TABLE_COUNT" -eq 0 ] || [ "$TABLE_COUNT" = "" ]; then
             echo "Database is empty, running migrations..."
-            psql -h localhost -p 5434 -U canopy-indexer -d canopy-indexer -f migrations/001_initial.sql
+            psql -h {pg_host} -p {pg_port} -U {pg_user} -d {pg_db} -f migrations/001_initial.sql
             echo "Migrations complete!"
         else
             echo "Database has $TABLE_COUNT tables, skipping migrations"
         fi
-    ''',
+    '''.format(
+        pgpassword=PGPASSWORD,
+        database_url=DATABASE_URL,
+        pg_host=PG_HOST,
+        pg_port=PG_PORT,
+        pg_user=PG_USER,
+        pg_db=PG_DB
+    ),
     resource_deps=['postgres'],
     labels=['database'],
     trigger_mode=TRIGGER_MODE_MANUAL,
@@ -52,17 +83,23 @@ local_resource(
         docker stop canopy-indexer-indexer 2>/dev/null || true
 
         echo "Resetting database..."
-        export PGPASSWORD=canopy-indexer123
-        psql -h localhost -p 5434 -U canopy-indexer -d canopy-indexer -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"
+        export PGPASSWORD={pgpassword}
+        psql -h {pg_host} -p {pg_port} -U {pg_user} -d {pg_db} -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"
 
         echo "Running migrations..."
-        psql -h localhost -p 5434 -U canopy-indexer -d canopy-indexer -f migrations/001_initial.sql
+        psql -h {pg_host} -p {pg_port} -U {pg_user} -d {pg_db} -f migrations/001_initial.sql
 
         echo "Restarting indexer via Tilt..."
         tilt trigger --port 10370 indexer-compile
 
         echo "Done!"
-    ''',
+    '''.format(
+        pgpassword=PGPASSWORD,
+        pg_host=PG_HOST,
+        pg_port=PG_PORT,
+        pg_user=PG_USER,
+        pg_db=PG_DB
+    ),
     labels=['database'],
     trigger_mode=TRIGGER_MODE_MANUAL,
     auto_init=False,
@@ -85,29 +122,37 @@ local_resource(
 # Indexer Service
 # =============================================================================
 
-# Build indexer and backfill binaries locally
+# Build indexer binary locally for hot-reload
 local_resource(
     'indexer-compile',
-    cmd='''
-        CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o bin/indexer-linux ./cmd/indexer
-        CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o bin/backfill-linux ./cmd/backfill
-        docker restart canopy-indexer-indexer 2>/dev/null || true
-    ''',
-    deps=['cmd/indexer', 'cmd/backfill', 'internal', 'pkg'],
+    cmd=go_build('indexer', './cmd/indexer', 'canopy-indexer-indexer'),
+    deps=['cmd/indexer', 'internal', 'pkg'],
+    ignore=['**/*_test.go', '**/.git', '**/bin', '**/*.md', '**/.claude'],
     labels=['indexer'],
     resource_deps=['db-migrate', 'redis'],
+    allow_parallel=True,
 )
 
-# Recompile and run backfill (use this instead of restarting backfill dc_resource)
+# Build backfill binary locally
+local_resource(
+    'backfill-compile',
+    cmd=go_build('backfill', './cmd/backfill'),
+    deps=['cmd/backfill', 'internal', 'pkg'],
+    ignore=['**/*_test.go', '**/.git', '**/bin', '**/*.md', '**/.claude'],
+    labels=['indexer'],
+    resource_deps=['db-migrate'],
+    allow_parallel=True,
+)
+
+# Manually trigger backfill recompile and restart
 local_resource(
     'backfill-run',
     cmd='''
-        echo "Compiling backfill..."
-        CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o bin/backfill-linux ./cmd/backfill
         echo "Restarting backfill container..."
         docker restart canopy-indexer-backfill
         echo "Done! Check backfill logs for output."
     ''',
+    resource_deps=['backfill-compile'],
     labels=['indexer'],
     trigger_mode=TRIGGER_MODE_MANUAL,
     auto_init=False,
@@ -124,10 +169,48 @@ dc_resource(
 # Backfill service (runs once to index all mock blocks)
 dc_resource(
     'backfill',
-    resource_deps=['indexer-compile', 'rpc-mock'],
+    resource_deps=['backfill-compile', 'rpc-mock'],
     labels=['indexer'],
     trigger_mode=TRIGGER_MODE_MANUAL,
     auto_init=True,
+)
+
+# =============================================================================
+# Canopy Blockchain Nodes
+# =============================================================================
+
+# Build canopy blockchain binary locally for hot-reload
+local_resource(
+    'canopy-compile',
+    cmd='cd ~/canopy/canopy/blob && CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o bin/canopy-linux ./cmd/main/... && docker restart canopy-node-1 canopy-node-2 2>/dev/null || true',
+    deps=[
+        '~/canopy/canopy/blob/cmd',
+        '~/canopy/canopy/blob/bft',
+        '~/canopy/canopy/blob/controller',
+        '~/canopy/canopy/blob/fsm',
+        '~/canopy/canopy/blob/lib',
+        '~/canopy/canopy/blob/p2p',
+        '~/canopy/canopy/blob/store',
+    ],
+    ignore=['**/*_test.go', '**/.git', '**/bin', '**/*.md', '**/node_modules', '**/.github'],
+    labels=['blockchain'],
+    allow_parallel=True,
+)
+
+# Canopy blockchain node 1
+dc_resource(
+    'canopy-node-1',
+    resource_deps=['canopy-compile'],
+    labels=['blockchain'],
+    trigger_mode=TRIGGER_MODE_AUTO,
+)
+
+# Canopy blockchain node 2
+dc_resource(
+    'canopy-node-2',
+    resource_deps=['canopy-compile'],
+    labels=['blockchain'],
+    trigger_mode=TRIGGER_MODE_AUTO,
 )
 
 # =============================================================================
@@ -138,8 +221,8 @@ dc_resource(
 local_resource(
     'show-progress',
     cmd='''
-        export PGPASSWORD=canopy-indexer123
-        psql -h localhost -p 5434 -U canopy-indexer -d canopy-indexer -c "
+        export PGPASSWORD={pgpassword}
+        psql -h {pg_host} -p {pg_port} -U {pg_user} -d {pg_db} -c "
             SELECT
                 chain_id,
                 last_height,
@@ -148,7 +231,13 @@ local_resource(
             FROM index_progress
             ORDER BY chain_id;
         "
-    ''',
+    '''.format(
+        pgpassword=PGPASSWORD,
+        pg_host=PG_HOST,
+        pg_port=PG_PORT,
+        pg_user=PG_USER,
+        pg_db=PG_DB
+    ),
     labels=['utils'],
     trigger_mode=TRIGGER_MODE_MANUAL,
     auto_init=False,
@@ -158,8 +247,8 @@ local_resource(
 local_resource(
     'show-stats',
     cmd='''
-        export PGPASSWORD=canopy-indexer123
-        psql -h localhost -p 5434 -U canopy-indexer -d canopy-indexer -c "
+        export PGPASSWORD={pgpassword}
+        psql -h {pg_host} -p {pg_port} -U {pg_user} -d {pg_db} -c "
             SELECT
                 'blocks' as table_name, COUNT(*) as count FROM blocks
             UNION ALL
@@ -172,7 +261,13 @@ local_resource(
             SELECT 'validators', COUNT(*) FROM validators
             ORDER BY table_name;
         "
-    ''',
+    '''.format(
+        pgpassword=PGPASSWORD,
+        pg_host=PG_HOST,
+        pg_port=PG_PORT,
+        pg_user=PG_USER,
+        pg_db=PG_DB
+    ),
     labels=['utils'],
     trigger_mode=TRIGGER_MODE_MANUAL,
     auto_init=False,
@@ -194,20 +289,35 @@ local_resource(
 print("")
 print("✅ Tilt started!")
 print("")
-print("📌 Services:")
-print("   • PostgreSQL: localhost:5434")
+print("📌 Database & Infrastructure:")
+print("   • PostgreSQL: {}:{}".format(PG_HOST, PG_PORT))
 print("   • Redis: localhost:6381")
-print("   • RPC Mock: 100 chains (IDs 1000-1099) on ports 60000-60099")
-print("   • Backfill: indexes all 100 chains (runs automatically)")
+print("")
+print("⛓️  Canopy Blockchain:")
+print("   • Node 1 RPC: http://localhost:50002")
+print("   • Node 1 Wallet: http://localhost:50000")
+print("   • Node 1 Explorer: http://localhost:50001")
+print("   • Node 2 RPC: http://localhost:40002")
+print("   • Node 2 Wallet: http://localhost:40000")
+print("   • Node 2 Explorer: http://localhost:40001")
+print("")
+print("📊 Indexer Services:")
+print("   • RPC Mock: 100 chains (IDs 1000-1099) on ports 61000-61099")
 print("   • Indexer: worker (waits for Redis jobs, WS disabled)")
+print("   • Backfill: indexes all 100 chains (runs automatically)")
 print("")
 print("🔧 Utility commands (trigger manually):")
-print("   • backfill-run: Recompile and run backfill")
+print("   • backfill-run: Restart backfill container")
 print("   • db-reset: Reset database and re-run migrations")
 print("   • redis-clear: Clear Redis streams")
 print("   • show-progress: View indexing progress")
 print("   • show-stats: View table row counts")
 print("   • logs: Tail indexer logs")
+print("")
+print("⚡ Hot-reload enabled:")
+print("   • indexer-compile: Auto-rebuilds on code changes (parallel)")
+print("   • backfill-compile: Auto-rebuilds on code changes (parallel)")
+print("   • canopy-compile: Auto-rebuilds blockchain on code changes (parallel)")
 print("")
 print("🎛️  Tilt UI: http://localhost:10370")
 print("")
