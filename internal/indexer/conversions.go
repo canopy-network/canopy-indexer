@@ -818,9 +818,11 @@ func convertAccounts(accounts []*fsm.Account, height uint64, blockTime time.Time
 	for i, acc := range accounts {
 		result[i] = &indexermodels.Account{
 			Address:    transform.BytesToHex(acc.Address),
+			Amount:     acc.Amount,
+			Rewards:    0, // TODO: aggregate from reward events
+			Slashes:    0, // TODO: aggregate from slash events
 			Height:     height,
 			HeightTime: blockTime,
-			// Add other fields like balance
 		}
 	}
 	return result
