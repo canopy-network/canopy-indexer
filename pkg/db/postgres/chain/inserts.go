@@ -52,7 +52,7 @@ func (db *DB) insertTransactions(ctx context.Context, exec postgres.Executor, tx
 	batch := &pgx.Batch{}
 	query := `
 		INSERT INTO txs (
-			height, tx_hash, tx_index, time, height_time, created_height, network_id,
+			height, tx_hash, tx_index, timestamp, height_time, created_height, network_id,
 			message_type, signer, amount, fee, memo,
 			validator_address, commission,
 			chain_id, sell_amount, buy_amount, liquidity_amount, liquidity_percent,
@@ -66,7 +66,7 @@ func (db *DB) insertTransactions(ctx context.Context, exec postgres.Executor, tx
 		)
 		ON CONFLICT (height, tx_hash) DO UPDATE SET
 			tx_index = EXCLUDED.tx_index,
-			time = EXCLUDED.time,
+			timestamp = EXCLUDED.timestamp,
 			height_time = EXCLUDED.height_time,
 			created_height = EXCLUDED.created_height,
 			network_id = EXCLUDED.network_id,
@@ -99,7 +99,7 @@ func (db *DB) insertTransactions(ctx context.Context, exec postgres.Executor, tx
 
 	for _, tx := range txs {
 		batch.Queue(query,
-			tx.Height, tx.TxHash, tx.TxIndex, tx.Time, tx.HeightTime, tx.CreatedHeight, tx.NetworkID,
+			tx.Height, tx.TxHash, tx.TxIndex, tx.Timestamp, tx.HeightTime, tx.CreatedHeight, tx.NetworkID,
 			tx.MessageType, tx.Signer, tx.Amount, tx.Fee, tx.Memo,
 			tx.ValidatorAddress, tx.Commission,
 			tx.ChainID, tx.SellAmount, tx.BuyAmount, tx.LiquidityAmt, tx.LiquidityPercent,

@@ -61,7 +61,7 @@ type Transaction struct {
 	TxIndex uint16 `ch:"tx_index" json:"tx_index"` // Transaction index within block
 
 	// Time fields for queries
-	Time          time.Time `ch:"time" json:"time"`                     // Transaction timestamp
+	Timestamp     time.Time `json:"timestamp"`                          // Transaction timestamp
 	HeightTime    time.Time `ch:"height_time" json:"height_time"`       // Block timestamp for range queries
 	CreatedHeight uint64    `ch:"created_height" json:"created_height"` // Height when tx was created
 	NetworkID     uint32    `ch:"network_id" json:"network_id"`         // Network identifier

@@ -15,7 +15,7 @@ func (db *DB) initTransactions(ctx context.Context) error {
 			tx_index SMALLINT NOT NULL,  -- UInt16 -> SMALLINT
 
 			-- Time fields for queries
-			time TIMESTAMP WITH TIME ZONE NOT NULL,       -- Transaction timestamp
+			timestamp TIMESTAMP WITH TIME ZONE NOT NULL,       -- Transaction timestamp
 			height_time TIMESTAMP WITH TIME ZONE NOT NULL, -- Block timestamp for range queries
 			created_height BIGINT NOT NULL,                -- Height when tx was created
 			network_id INTEGER NOT NULL,                   -- UInt32 -> INTEGER
