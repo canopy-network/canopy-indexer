@@ -1,0 +1,77 @@
+{
+  "time": "2026-01-10 06:15:57",
+  "accounts": [
+    {
+      "address": "13395bdcb702b136e0e72f35c9cb26a1d94e763b",
+      "amount": 1000000
+    }
+  ],
+  "nonSigners": null,
+  "validators": [
+    {
+      "address": "13395bdcb702b136e0e72f35c9cb26a1d94e763b",
+      "publicKey": "af53256bac5ae504c690e48accb1db03720b6897b227d43dc320f1ed664bb248b4d14c41fbc78261ff1f770a1edae77a",
+      "committees": [
+        1
+      ],
+      "netAddress": "tcp://localhost",
+      "stakedAmount": 1000000000000,
+      "maxPausedHeight": 0,
+      "unstakingHeight": 0,
+      "output": "13395bdcb702b136e0e72f35c9cb26a1d94e763b",
+      "delegate": false,
+      "compound": true
+    }
+  ],
+  "params": {
+    "consensus": {
+      "blockSize": 1000000,
+      "protocolVersion": "1/0",
+      "rootChainID": 1,
+      "resetCommittee": 0
+    },
+    "validator": {
+      "unstakingBlocks": 2,
+      "maxPauseBlocks": 4380,
+      "doubleSignSlashPercentage": 10,
+      "nonSignSlashPercentage": 1,
+      "maxNonSign": 3,
+      "nonSignWindow": 5,
+      "maxCommittees": 15,
+      "maxCommitteeSize": 100,
+      "earlyWithdrawalPenalty": 20,
+      "delegateUnstakingBlocks": 2,
+      "minimumOrderSize": 1000000000,
+      "stakePercentForSubsidizedCommittee": 33,
+      "maxSlashPerCommittee": 15,
+      "delegateRewardPercentage": 10,
+      "buyDeadlineBlocks": 60,
+      "lockOrderFeeMultiplier": 2,
+      "minimumStakeForValidators": 0,
+      "minimumStakeForDelegates": 0,
+      "maximumDelegatesPerCommittee": 0
+    },
+    "fee": {
+      "sendFee": 10000,
+      "stakeFee": 10000,
+      "editStakeFee": 10000,
+      "unstakeFee": 10000,
+      "pauseFee": 10000,
+      "unpauseFee": 10000,
+      "changeParameterFee": 10000,
+      "daoTransferFee": 10000,
+      "certificateResultsFee": 0,
+      "subsidyFee": 10000,
+      "createOrderFee": 10000,
+      "editOrderFee": 10000,
+      "deleteOrderFee": 10000,
+      "dexLimitOrderFee": 0,
+      "dexLiquidityDeposit": 0,
+      "dexLiquidityWithdraw": 0
+    },
+    "governance": {
+      "daoRewardPercentage": 5
+    }
+  },
+  "supply": null
+}
