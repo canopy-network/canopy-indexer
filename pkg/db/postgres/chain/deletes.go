@@ -11,140 +11,140 @@ import (
 
 // deleteBlocksAtHeight deletes all blocks at the specified height
 func (db *DB) deleteBlocksAtHeight(ctx context.Context, exec postgres.Executor, height uint64) error {
-	query := `DELETE FROM blocks WHERE height = $1`
+	query := fmt.Sprintf(`DELETE FROM %s WHERE height = $1`, db.SchemaTable("blocks"))
 	_, err := exec.Exec(ctx, query, height)
 	return err
 }
 
 // deleteBlockSummariesAtHeight deletes block summaries at the specified height
 func (db *DB) deleteBlockSummariesAtHeight(ctx context.Context, exec postgres.Executor, height uint64) error {
-	query := `DELETE FROM block_summaries WHERE height = $1`
+	query := fmt.Sprintf(`DELETE FROM %s WHERE height = $1`, db.SchemaTable("block_summaries"))
 	_, err := exec.Exec(ctx, query, height)
 	return err
 }
 
 // deleteTransactionsAtHeight deletes all transactions at the specified height
 func (db *DB) deleteTransactionsAtHeight(ctx context.Context, exec postgres.Executor, height uint64) error {
-	query := `DELETE FROM txs WHERE height = $1`
+	query := fmt.Sprintf(`DELETE FROM %s WHERE height = $1`, db.SchemaTable("txs"))
 	_, err := exec.Exec(ctx, query, height)
 	return err
 }
 
 // deleteEventsAtHeight deletes all events at the specified height
 func (db *DB) deleteEventsAtHeight(ctx context.Context, exec postgres.Executor, height uint64) error {
-	query := `DELETE FROM events WHERE height = $1`
+	query := fmt.Sprintf(`DELETE FROM %s WHERE height = $1`, db.SchemaTable("events"))
 	_, err := exec.Exec(ctx, query, height)
 	return err
 }
 
 // deleteAccountsAtHeight deletes all account snapshots at the specified height
 func (db *DB) deleteAccountsAtHeight(ctx context.Context, exec postgres.Executor, height uint64) error {
-	query := `DELETE FROM accounts WHERE height = $1`
+	query := fmt.Sprintf(`DELETE FROM %s WHERE height = $1`, db.SchemaTable("accounts"))
 	_, err := exec.Exec(ctx, query, height)
 	return err
 }
 
 // deleteValidatorsAtHeight deletes all validator snapshots at the specified height
 func (db *DB) deleteValidatorsAtHeight(ctx context.Context, exec postgres.Executor, height uint64) error {
-	query := `DELETE FROM validators WHERE height = $1`
+	query := fmt.Sprintf(`DELETE FROM %s WHERE height = $1`, db.SchemaTable("validators"))
 	_, err := exec.Exec(ctx, query, height)
 	return err
 }
 
 // deleteValidatorNonSigningInfoAtHeight deletes all non-signing info at the specified height
 func (db *DB) deleteValidatorNonSigningInfoAtHeight(ctx context.Context, exec postgres.Executor, height uint64) error {
-	query := `DELETE FROM validator_non_signing_info WHERE height = $1`
+	query := fmt.Sprintf(`DELETE FROM %s WHERE height = $1`, db.SchemaTable("validator_non_signing_info"))
 	_, err := exec.Exec(ctx, query, height)
 	return err
 }
 
 // deleteValidatorDoubleSigningInfoAtHeight deletes all double signing info at the specified height
 func (db *DB) deleteValidatorDoubleSigningInfoAtHeight(ctx context.Context, exec postgres.Executor, height uint64) error {
-	query := `DELETE FROM validator_double_signing_info WHERE height = $1`
+	query := fmt.Sprintf(`DELETE FROM %s WHERE height = $1`, db.SchemaTable("validator_double_signing_info"))
 	_, err := exec.Exec(ctx, query, height)
 	return err
 }
 
 // deletePoolsAtHeight deletes all pool snapshots at the specified height
 func (db *DB) deletePoolsAtHeight(ctx context.Context, exec postgres.Executor, height uint64) error {
-	query := `DELETE FROM pools WHERE height = $1`
+	query := fmt.Sprintf(`DELETE FROM %s WHERE height = $1`, db.SchemaTable("pools"))
 	_, err := exec.Exec(ctx, query, height)
 	return err
 }
 
 // deletePoolPointsByHolderAtHeight deletes all pool points by holder at the specified height
 func (db *DB) deletePoolPointsByHolderAtHeight(ctx context.Context, exec postgres.Executor, height uint64) error {
-	query := `DELETE FROM pool_points_by_holder WHERE height = $1`
+	query := fmt.Sprintf(`DELETE FROM %s WHERE height = $1`, db.SchemaTable("pool_points_by_holder"))
 	_, err := exec.Exec(ctx, query, height)
 	return err
 }
 
 // deleteOrdersAtHeight deletes all order snapshots at the specified height
 func (db *DB) deleteOrdersAtHeight(ctx context.Context, exec postgres.Executor, height uint64) error {
-	query := `DELETE FROM orders WHERE height = $1`
+	query := fmt.Sprintf(`DELETE FROM %s WHERE height = $1`, db.SchemaTable("orders"))
 	_, err := exec.Exec(ctx, query, height)
 	return err
 }
 
 // deleteDexOrdersAtHeight deletes all DEX orders at the specified height
 func (db *DB) deleteDexOrdersAtHeight(ctx context.Context, exec postgres.Executor, height uint64) error {
-	query := `DELETE FROM dex_orders WHERE height = $1`
+	query := fmt.Sprintf(`DELETE FROM %s WHERE height = $1`, db.SchemaTable("dex_orders"))
 	_, err := exec.Exec(ctx, query, height)
 	return err
 }
 
 // deleteDexDepositsAtHeight deletes all DEX deposits at the specified height
 func (db *DB) deleteDexDepositsAtHeight(ctx context.Context, exec postgres.Executor, height uint64) error {
-	query := `DELETE FROM dex_deposits WHERE height = $1`
+	query := fmt.Sprintf(`DELETE FROM %s WHERE height = $1`, db.SchemaTable("dex_deposits"))
 	_, err := exec.Exec(ctx, query, height)
 	return err
 }
 
 // deleteDexWithdrawalsAtHeight deletes all DEX withdrawals at the specified height
 func (db *DB) deleteDexWithdrawalsAtHeight(ctx context.Context, exec postgres.Executor, height uint64) error {
-	query := `DELETE FROM dex_withdrawals WHERE height = $1`
+	query := fmt.Sprintf(`DELETE FROM %s WHERE height = $1`, db.SchemaTable("dex_withdrawals"))
 	_, err := exec.Exec(ctx, query, height)
 	return err
 }
 
 // deleteDexPricesAtHeight deletes all DEX prices at the specified height
 func (db *DB) deleteDexPricesAtHeight(ctx context.Context, exec postgres.Executor, height uint64) error {
-	query := `DELETE FROM dex_prices WHERE height = $1`
+	query := fmt.Sprintf(`DELETE FROM %s WHERE height = $1`, db.SchemaTable("dex_prices"))
 	_, err := exec.Exec(ctx, query, height)
 	return err
 }
 
 // deleteCommitteesAtHeight deletes all committee snapshots at the specified height
 func (db *DB) deleteCommitteesAtHeight(ctx context.Context, exec postgres.Executor, height uint64) error {
-	query := `DELETE FROM committees WHERE height = $1`
+	query := fmt.Sprintf(`DELETE FROM %s WHERE height = $1`, db.SchemaTable("committees"))
 	_, err := exec.Exec(ctx, query, height)
 	return err
 }
 
 // deleteCommitteeValidatorsAtHeight deletes all committee validator relationships at the specified height
 func (db *DB) deleteCommitteeValidatorsAtHeight(ctx context.Context, exec postgres.Executor, height uint64) error {
-	query := `DELETE FROM committee_validators WHERE height = $1`
+	query := fmt.Sprintf(`DELETE FROM %s WHERE height = $1`, db.SchemaTable("committee_validators"))
 	_, err := exec.Exec(ctx, query, height)
 	return err
 }
 
 // deleteCommitteePaymentsAtHeight deletes all committee payments at the specified height
 func (db *DB) deleteCommitteePaymentsAtHeight(ctx context.Context, exec postgres.Executor, height uint64) error {
-	query := `DELETE FROM committee_payments WHERE height = $1`
+	query := fmt.Sprintf(`DELETE FROM %s WHERE height = $1`, db.SchemaTable("committee_payments"))
 	_, err := exec.Exec(ctx, query, height)
 	return err
 }
 
 // deleteParamsAtHeight deletes all parameter snapshots at the specified height
 func (db *DB) deleteParamsAtHeight(ctx context.Context, exec postgres.Executor, height uint64) error {
-	query := `DELETE FROM params WHERE height = $1`
+	query := fmt.Sprintf(`DELETE FROM %s WHERE height = $1`, db.SchemaTable("params"))
 	_, err := exec.Exec(ctx, query, height)
 	return err
 }
 
 // deleteSupplyAtHeight deletes all supply snapshots at the specified height
 func (db *DB) deleteSupplyAtHeight(ctx context.Context, exec postgres.Executor, height uint64) error {
-	query := `DELETE FROM supply WHERE height = $1`
+	query := fmt.Sprintf(`DELETE FROM %s WHERE height = $1`, db.SchemaTable("supply"))
 	_, err := exec.Exec(ctx, query, height)
 	return err
 }

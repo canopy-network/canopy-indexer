@@ -9,21 +9,25 @@ import (
 
 // initBlocks creates the blocks table
 func (db *DB) initBlocks(ctx context.Context) error {
-	query := `
-		CREATE TABLE IF NOT EXISTS blocks (
-			chain_id            BIGINT NOT NULL,
-			height              BIGINT NOT NULL,
-			height_time         TIMESTAMP WITH TIME ZONE NOT NULL,
-			block_hash          TEXT NOT NULL,
-			proposer_address    TEXT,
-			total_txs           BIGINT NOT NULL DEFAULT 0,
-			num_txs             INTEGER NOT NULL DEFAULT 0,
-			created_at          TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+	blocksTable := db.SchemaTable("blocks")
+	query := fmt.Sprintf(`
+		CREATE TABLE IF NOT EXISTS %s (
+			chain_id BIGINT NOT NULL,
+			height BIGINT NOT NULL,
+			hash TEXT NOT NULL,
+			timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
+			network_id INTEGER NOT NULL,
+			parent_hash TEXT,
+			proposer_address TEXT,
+			size INTEGER,
+			num_txs BIGINT NOT NULL DEFAULT 0,
+			total_txs BIGINT NOT NULL DEFAULT 0,
+			created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
 			PRIMARY KEY (chain_id, height)
 		);
 
-		CREATE INDEX IF NOT EXISTS idx_blocks_time ON blocks(height_time);
-	`
+		CREATE INDEX IF NOT EXISTS idx_blocks_timestamp ON %s(timestamp);
+	`, blocksTable, blocksTable)
 
 	db.Logger.Debug("Executing SQL for blocks table",
 		zap.String("table", "blocks"),
@@ -40,8 +44,9 @@ func (db *DB) initBlocks(ctx context.Context) error {
 
 // initBlockSummaries creates the block_summaries table
 func (db *DB) initBlockSummaries(ctx context.Context) error {
-	query := `
-		CREATE TABLE IF NOT EXISTS block_summaries (
+	blockSummariesTable := db.SchemaTable("block_summaries")
+	query := fmt.Sprintf(`
+		CREATE TABLE IF NOT EXISTS %s (
 			chain_id                                BIGINT NOT NULL,
 			height                                  BIGINT NOT NULL,
 			height_time                             TIMESTAMP WITH TIME ZONE NOT NULL,
@@ -153,17 +158,19 @@ func (db *DB) initBlockSummaries(ctx context.Context) error {
 			supply_delegated_only                   BIGINT NOT NULL DEFAULT 0,
 
 			created_at                              TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+			updated_at                              TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
 			PRIMARY KEY (chain_id, height)
 		)
-	`
+	`, blockSummariesTable)
 
 	return db.Exec(ctx, query)
 }
 
 // initTransactions creates the txs table
 func (db *DB) initTransactions(ctx context.Context) error {
-	query := `
-		CREATE TABLE IF NOT EXISTS txs (
+	txsTable := db.SchemaTable("txs")
+	query := fmt.Sprintf(`
+		CREATE TABLE IF NOT EXISTS %s (
 			chain_id                BIGINT NOT NULL,
 			height                  BIGINT NOT NULL,
 			height_time             TIMESTAMP WITH TIME ZONE NOT NULL,
@@ -179,7 +186,7 @@ func (db *DB) initTransactions(ctx context.Context) error {
 			memo                    TEXT,
 			validator_address       TEXT,
 			commission              DOUBLE PRECISION,
-			tx_chain_id             BIGINT,
+			chain_id_tx             BIGINT,
 			sell_amount             BIGINT,
 			buy_amount              BIGINT,
 			liquidity_amount        BIGINT,
@@ -198,60 +205,62 @@ func (db *DB) initTransactions(ctx context.Context) error {
 			public_key              TEXT,
 			signature               TEXT,
 			created_at              TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+			updated_at              TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
 			PRIMARY KEY (chain_id, height, tx_hash)
 		);
 
-		CREATE INDEX IF NOT EXISTS idx_txs_signer ON txs(chain_id, signer);
-		CREATE INDEX IF NOT EXISTS idx_txs_message_type ON txs(chain_id, message_type);
-		CREATE INDEX IF NOT EXISTS idx_txs_time ON txs(height_time);
-	`
+		CREATE INDEX IF NOT EXISTS idx_txs_signer ON %s(chain_id, signer);
+		CREATE INDEX IF NOT EXISTS idx_txs_message_type ON %s(chain_id, message_type);
+		CREATE INDEX IF NOT EXISTS idx_txs_time ON %s(height_time);
+	`, txsTable, txsTable, txsTable, txsTable)
 
 	return db.Exec(ctx, query)
 }
 
 // initEvents creates the events table
 func (db *DB) initEvents(ctx context.Context) error {
-	query := `
-		CREATE TABLE IF NOT EXISTS events (
-			chain_id                BIGINT NOT NULL,
-			height                  BIGINT NOT NULL,
-			height_time             TIMESTAMP WITH TIME ZONE NOT NULL,
-			event_chain_id          BIGINT NOT NULL,
-			address                 TEXT NOT NULL,
-			reference               TEXT NOT NULL,
-			event_type              TEXT NOT NULL,
-			block_height            BIGINT NOT NULL,
-			amount                  BIGINT,
-			sold_amount             BIGINT,
-			bought_amount           BIGINT,
-			local_amount            BIGINT,
-			remote_amount           BIGINT,
-			success                 BOOLEAN,
-			local_origin            BOOLEAN,
-			order_id                TEXT,
-			points_received         BIGINT,
-			points_burned           BIGINT,
-			data                    TEXT,
-			seller_receive_address  TEXT,
-			buyer_send_address      TEXT,
-			sellers_send_address    TEXT,
-			msg                     JSONB NOT NULL,
-			created_at              TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+	eventsTable := db.SchemaTable("events")
+	query := fmt.Sprintf(`
+		CREATE TABLE IF NOT EXISTS %s (
+			chain_id BIGINT NOT NULL,
+			height BIGINT NOT NULL,
+			height_time TIMESTAMP WITH TIME ZONE NOT NULL,
+			event_chain_id BIGINT NOT NULL,
+			address TEXT NOT NULL,
+			reference TEXT NOT NULL,
+			event_type TEXT NOT NULL,
+			block_height BIGINT NOT NULL,
+			amount BIGINT DEFAULT 0,
+			sold_amount BIGINT DEFAULT 0,
+			bought_amount BIGINT DEFAULT 0,
+			local_amount BIGINT DEFAULT 0,
+			remote_amount BIGINT DEFAULT 0,
+			success BOOLEAN DEFAULT false,
+			local_origin BOOLEAN DEFAULT false,
+			order_id TEXT DEFAULT '',
+			points_received BIGINT DEFAULT 0,
+			points_burned BIGINT DEFAULT 0,
+			data TEXT DEFAULT '',
+			seller_receive_address TEXT DEFAULT '',
+			buyer_send_address TEXT DEFAULT '',
+			created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+			updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+			PRIMARY KEY (chain_id, height, event_chain_id, address, reference, event_type)
 		);
 
-		CREATE INDEX IF NOT EXISTS idx_events_pk ON events(chain_id, height, event_type, address);
-		CREATE INDEX IF NOT EXISTS idx_events_address ON events(chain_id, address);
-		CREATE INDEX IF NOT EXISTS idx_events_type ON events(chain_id, event_type);
-		CREATE INDEX IF NOT EXISTS idx_events_time ON events(height_time);
-	`
+		CREATE INDEX IF NOT EXISTS idx_events_height ON %s(height);
+		CREATE INDEX IF NOT EXISTS idx_events_address ON %s(chain_id, address);
+		CREATE INDEX IF NOT EXISTS idx_events_type ON %s(chain_id, event_type);
+	`, eventsTable, eventsTable, eventsTable, eventsTable)
 
 	return db.Exec(ctx, query)
 }
 
 // initAccounts creates the accounts table
 func (db *DB) initAccounts(ctx context.Context) error {
-	query := `
-		CREATE TABLE IF NOT EXISTS accounts (
+	accountsTable := db.SchemaTable("accounts")
+	query := fmt.Sprintf(`
+		CREATE TABLE IF NOT EXISTS %s (
 			chain_id        BIGINT NOT NULL,
 			address         TEXT NOT NULL,
 			amount          BIGINT NOT NULL DEFAULT 0,
@@ -260,19 +269,21 @@ func (db *DB) initAccounts(ctx context.Context) error {
 			height          BIGINT NOT NULL,
 			height_time     TIMESTAMP WITH TIME ZONE NOT NULL,
 			created_at      TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+			updated_at      TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
 			PRIMARY KEY (chain_id, address, height)
 		);
 
-		CREATE INDEX IF NOT EXISTS idx_accounts_address ON accounts(chain_id, address);
-	`
+		CREATE INDEX IF NOT EXISTS idx_accounts_address ON %s(chain_id, address);
+	`, accountsTable, accountsTable)
 
 	return db.Exec(ctx, query)
 }
 
 // initValidators creates the validators table
 func (db *DB) initValidators(ctx context.Context) error {
-	query := `
-		CREATE TABLE IF NOT EXISTS validators (
+	validatorsTable := db.SchemaTable("validators")
+	query := fmt.Sprintf(`
+		CREATE TABLE IF NOT EXISTS %s (
 			chain_id            BIGINT NOT NULL,
 			address             TEXT NOT NULL,
 			public_key          TEXT NOT NULL,
@@ -287,20 +298,22 @@ func (db *DB) initValidators(ctx context.Context) error {
 			height              BIGINT NOT NULL,
 			height_time         TIMESTAMP WITH TIME ZONE NOT NULL,
 			created_at          TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+			updated_at          TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
 			PRIMARY KEY (chain_id, address, height)
 		);
 
-		CREATE INDEX IF NOT EXISTS idx_validators_address ON validators(chain_id, address);
-		CREATE INDEX IF NOT EXISTS idx_validators_status ON validators(chain_id, status);
-	`
+		CREATE INDEX IF NOT EXISTS idx_validators_address ON %s(chain_id, address);
+		CREATE INDEX IF NOT EXISTS idx_validators_status ON %s(chain_id, status);
+	`, validatorsTable, validatorsTable, validatorsTable)
 
 	return db.Exec(ctx, query)
 }
 
 // initValidatorNonSigningInfo creates the validator_non_signing_info table
 func (db *DB) initValidatorNonSigningInfo(ctx context.Context) error {
-	query := `
-		CREATE TABLE IF NOT EXISTS validator_non_signing_info (
+	validatorNonSigningInfoTable := db.SchemaTable("validator_non_signing_info")
+	query := fmt.Sprintf(`
+		CREATE TABLE IF NOT EXISTS %s (
 			chain_id            BIGINT NOT NULL,
 			address             TEXT NOT NULL,
 			missed_blocks_count BIGINT NOT NULL DEFAULT 0,
@@ -308,17 +321,19 @@ func (db *DB) initValidatorNonSigningInfo(ctx context.Context) error {
 			height              BIGINT NOT NULL,
 			height_time         TIMESTAMP WITH TIME ZONE NOT NULL,
 			created_at          TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+			updated_at          TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
 			PRIMARY KEY (chain_id, address, height)
 		)
-	`
+	`, validatorNonSigningInfoTable)
 
 	return db.Exec(ctx, query)
 }
 
 // initValidatorDoubleSigningInfo creates the validator_double_signing_info table
 func (db *DB) initValidatorDoubleSigningInfo(ctx context.Context) error {
-	query := `
-		CREATE TABLE IF NOT EXISTS validator_double_signing_info (
+	validatorDoubleSigningInfoTable := db.SchemaTable("validator_double_signing_info")
+	query := fmt.Sprintf(`
+		CREATE TABLE IF NOT EXISTS %s (
 			chain_id                BIGINT NOT NULL,
 			address                 TEXT NOT NULL,
 			evidence_count          BIGINT NOT NULL DEFAULT 0,
@@ -327,17 +342,19 @@ func (db *DB) initValidatorDoubleSigningInfo(ctx context.Context) error {
 			height                  BIGINT NOT NULL,
 			height_time             TIMESTAMP WITH TIME ZONE NOT NULL,
 			created_at              TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+			updated_at              TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
 			PRIMARY KEY (chain_id, address, height)
 		)
-	`
+	`, validatorDoubleSigningInfoTable)
 
 	return db.Exec(ctx, query)
 }
 
 // initCommittees creates the committees table
 func (db *DB) initCommittees(ctx context.Context) error {
-	query := `
-		CREATE TABLE IF NOT EXISTS committees (
+	committeesTable := db.SchemaTable("committees")
+	query := fmt.Sprintf(`
+		CREATE TABLE IF NOT EXISTS %s (
 			chain_id                    BIGINT NOT NULL,
 			committee_chain_id          BIGINT NOT NULL,
 			last_root_height_updated    BIGINT NOT NULL DEFAULT 0,
@@ -348,17 +365,19 @@ func (db *DB) initCommittees(ctx context.Context) error {
 			height                      BIGINT NOT NULL,
 			height_time                 TIMESTAMP WITH TIME ZONE NOT NULL,
 			created_at                  TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+			updated_at                  TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
 			PRIMARY KEY (chain_id, committee_chain_id, height)
 		)
-	`
+	`, committeesTable)
 
 	return db.Exec(ctx, query)
 }
 
 // initCommitteeValidators creates the committee_validators table
 func (db *DB) initCommitteeValidators(ctx context.Context) error {
-	query := `
-		CREATE TABLE IF NOT EXISTS committee_validators (
+	committeeValidatorsTable := db.SchemaTable("committee_validators")
+	query := fmt.Sprintf(`
+		CREATE TABLE IF NOT EXISTS %s (
 			chain_id        BIGINT NOT NULL,
 			committee_id    BIGINT NOT NULL,
 			address         TEXT NOT NULL,
@@ -369,9 +388,10 @@ func (db *DB) initCommitteeValidators(ctx context.Context) error {
 			height          BIGINT NOT NULL,
 			height_time     TIMESTAMP WITH TIME ZONE NOT NULL,
 			created_at      TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+			updated_at      TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
 			PRIMARY KEY (chain_id, committee_id, address, height)
 		)
-	`
+	`, committeeValidatorsTable)
 
 	db.Logger.Debug("Executing SQL for committee_validators table",
 		zap.String("table", "committee_validators"),
@@ -388,8 +408,9 @@ func (db *DB) initCommitteeValidators(ctx context.Context) error {
 
 // initCommitteePayments creates the committee_payments table
 func (db *DB) initCommitteePayments(ctx context.Context) error {
-	query := `
-		CREATE TABLE IF NOT EXISTS committee_payments (
+	committeePaymentsTable := db.SchemaTable("committee_payments")
+	query := fmt.Sprintf(`
+		CREATE TABLE IF NOT EXISTS %s (
 			chain_id        BIGINT NOT NULL,
 			committee_id    BIGINT NOT NULL,
 			address         TEXT NOT NULL,
@@ -397,17 +418,19 @@ func (db *DB) initCommitteePayments(ctx context.Context) error {
 			height          BIGINT NOT NULL,
 			height_time     TIMESTAMP WITH TIME ZONE NOT NULL,
 			created_at      TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+			updated_at      TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
 			PRIMARY KEY (chain_id, committee_id, address, height)
 		)
-	`
+	`, committeePaymentsTable)
 
 	return db.Exec(ctx, query)
 }
 
 // initPools creates the pools table
 func (db *DB) initPools(ctx context.Context) error {
-	query := `
-		CREATE TABLE IF NOT EXISTS pools (
+	poolsTable := db.SchemaTable("pools")
+	query := fmt.Sprintf(`
+		CREATE TABLE IF NOT EXISTS %s (
 			chain_id            BIGINT NOT NULL,
 			pool_id             BIGINT NOT NULL,
 			pool_chain_id       BIGINT NOT NULL,
@@ -424,17 +447,19 @@ func (db *DB) initPools(ctx context.Context) error {
 			total_points_delta  BIGINT NOT NULL DEFAULT 0,
 			lp_count_delta      INTEGER NOT NULL DEFAULT 0,
 			created_at          TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+			updated_at          TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
 			PRIMARY KEY (chain_id, pool_id, height)
 		)
-	`
+	`, poolsTable)
 
 	return db.Exec(ctx, query)
 }
 
 // initPoolPointsByHolder creates the pool_points_by_holder table
 func (db *DB) initPoolPointsByHolder(ctx context.Context) error {
-	query := `
-		CREATE TABLE IF NOT EXISTS pool_points_by_holder (
+	poolPointsByHolderTable := db.SchemaTable("pool_points_by_holder")
+	query := fmt.Sprintf(`
+		CREATE TABLE IF NOT EXISTS %s (
 			chain_id                BIGINT NOT NULL,
 			address                 TEXT NOT NULL,
 			pool_id                 BIGINT NOT NULL,
@@ -445,20 +470,22 @@ func (db *DB) initPoolPointsByHolder(ctx context.Context) error {
 			height                  BIGINT NOT NULL,
 			height_time             TIMESTAMP WITH TIME ZONE NOT NULL,
 			created_at              TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+			updated_at              TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
 			PRIMARY KEY (chain_id, address, pool_id, height)
 		);
 
-		CREATE INDEX IF NOT EXISTS idx_pph_latest ON pool_points_by_holder(chain_id, address, pool_id, height DESC);
-		CREATE INDEX IF NOT EXISTS idx_pph_first_seen ON pool_points_by_holder(chain_id, address, pool_id, height_time);
-	`
+		CREATE INDEX IF NOT EXISTS idx_pph_latest ON %s(chain_id, address, pool_id, height DESC);
+		CREATE INDEX IF NOT EXISTS idx_pph_first_seen ON %s(chain_id, address, pool_id, height_time);
+	`, poolPointsByHolderTable, poolPointsByHolderTable, poolPointsByHolderTable)
 
 	return db.Exec(ctx, query)
 }
 
 // initOrders creates the orders table
 func (db *DB) initOrders(ctx context.Context) error {
-	query := `
-		CREATE TABLE IF NOT EXISTS orders (
+	ordersTable := db.SchemaTable("orders")
+	query := fmt.Sprintf(`
+		CREATE TABLE IF NOT EXISTS %s (
 			chain_id                BIGINT NOT NULL,
 			order_id                TEXT NOT NULL,
 			committee               BIGINT NOT NULL,
@@ -474,17 +501,19 @@ func (db *DB) initOrders(ctx context.Context) error {
 			height                  BIGINT NOT NULL,
 			height_time             TIMESTAMP WITH TIME ZONE NOT NULL,
 			created_at              TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+			updated_at              TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
 			PRIMARY KEY (chain_id, order_id, height)
 		)
-	`
+	`, ordersTable)
 
 	return db.Exec(ctx, query)
 }
 
 // initDexOrders creates the dex_orders table
 func (db *DB) initDexOrders(ctx context.Context) error {
-	query := `
-		CREATE TABLE IF NOT EXISTS dex_orders (
+	dexOrdersTable := db.SchemaTable("dex_orders")
+	query := fmt.Sprintf(`
+		CREATE TABLE IF NOT EXISTS %s (
 			chain_id            BIGINT NOT NULL,
 			order_id            TEXT NOT NULL,
 			committee           BIGINT NOT NULL,
@@ -500,20 +529,22 @@ func (db *DB) initDexOrders(ctx context.Context) error {
 			height              BIGINT NOT NULL,
 			height_time         TIMESTAMP WITH TIME ZONE NOT NULL,
 			created_at          TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+			updated_at          TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
 			PRIMARY KEY (chain_id, order_id, height)
 		);
 
-		CREATE INDEX IF NOT EXISTS idx_dex_orders_address ON dex_orders(chain_id, address);
-		CREATE INDEX IF NOT EXISTS idx_dex_orders_state ON dex_orders(chain_id, state);
-	`
+		CREATE INDEX IF NOT EXISTS idx_dex_orders_address ON %s(chain_id, address);
+		CREATE INDEX IF NOT EXISTS idx_dex_orders_state ON %s(chain_id, state);
+	`, dexOrdersTable, dexOrdersTable, dexOrdersTable)
 
 	return db.Exec(ctx, query)
 }
 
 // initDexDeposits creates the dex_deposits table
 func (db *DB) initDexDeposits(ctx context.Context) error {
-	query := `
-		CREATE TABLE IF NOT EXISTS dex_deposits (
+	dexDepositsTable := db.SchemaTable("dex_deposits")
+	query := fmt.Sprintf(`
+		CREATE TABLE IF NOT EXISTS %s (
 			chain_id            BIGINT NOT NULL,
 			order_id            TEXT NOT NULL,
 			committee           BIGINT NOT NULL,
@@ -525,19 +556,21 @@ func (db *DB) initDexDeposits(ctx context.Context) error {
 			height              BIGINT NOT NULL,
 			height_time         TIMESTAMP WITH TIME ZONE NOT NULL,
 			created_at          TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+			updated_at          TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
 			PRIMARY KEY (chain_id, order_id, height)
 		);
 
-		CREATE INDEX IF NOT EXISTS idx_dex_deposits_address ON dex_deposits(chain_id, address);
-	`
+		CREATE INDEX IF NOT EXISTS idx_dex_deposits_address ON %s(chain_id, address);
+	`, dexDepositsTable, dexDepositsTable)
 
 	return db.Exec(ctx, query)
 }
 
 // initDexWithdrawals creates the dex_withdrawals table
 func (db *DB) initDexWithdrawals(ctx context.Context) error {
-	query := `
-		CREATE TABLE IF NOT EXISTS dex_withdrawals (
+	dexWithdrawalsTable := db.SchemaTable("dex_withdrawals")
+	query := fmt.Sprintf(`
+		CREATE TABLE IF NOT EXISTS %s (
 			chain_id            BIGINT NOT NULL,
 			order_id            TEXT NOT NULL,
 			committee           BIGINT NOT NULL,
@@ -550,19 +583,21 @@ func (db *DB) initDexWithdrawals(ctx context.Context) error {
 			height              BIGINT NOT NULL,
 			height_time         TIMESTAMP WITH TIME ZONE NOT NULL,
 			created_at          TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+			updated_at          TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
 			PRIMARY KEY (chain_id, order_id, height)
 		);
 
-		CREATE INDEX IF NOT EXISTS idx_dex_withdrawals_address ON dex_withdrawals(chain_id, address);
-	`
+		CREATE INDEX IF NOT EXISTS idx_dex_withdrawals_address ON %s(chain_id, address);
+	`, dexWithdrawalsTable, dexWithdrawalsTable)
 
 	return db.Exec(ctx, query)
 }
 
 // initDexPrices creates the dex_prices table
 func (db *DB) initDexPrices(ctx context.Context) error {
-	query := `
-		CREATE TABLE IF NOT EXISTS dex_prices (
+	dexPricesTable := db.SchemaTable("dex_prices")
+	query := fmt.Sprintf(`
+		CREATE TABLE IF NOT EXISTS %s (
 			chain_id            BIGINT NOT NULL,
 			local_chain_id      BIGINT NOT NULL,
 			remote_chain_id     BIGINT NOT NULL,
@@ -575,19 +610,21 @@ func (db *DB) initDexPrices(ctx context.Context) error {
 			local_pool_delta    BIGINT NOT NULL DEFAULT 0,
 			remote_pool_delta   BIGINT NOT NULL DEFAULT 0,
 			created_at          TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+			updated_at          TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
 			PRIMARY KEY (chain_id, local_chain_id, remote_chain_id, height)
 		);
 
-		CREATE INDEX IF NOT EXISTS idx_dex_prices_time ON dex_prices(height_time);
-	`
+		CREATE INDEX IF NOT EXISTS idx_dex_prices_time ON %s(height_time);
+	`, dexPricesTable, dexPricesTable)
 
 	return db.Exec(ctx, query)
 }
 
 // initParams creates the params table
 func (db *DB) initParams(ctx context.Context) error {
-	query := `
-		CREATE TABLE IF NOT EXISTS params (
+	paramsTable := db.SchemaTable("params")
+	query := fmt.Sprintf(`
+		CREATE TABLE IF NOT EXISTS %s (
 			chain_id                        BIGINT NOT NULL,
 			height                          BIGINT NOT NULL,
 			height_time                     TIMESTAMP WITH TIME ZONE NOT NULL,
@@ -632,17 +669,19 @@ func (db *DB) initParams(ctx context.Context) error {
 			dex_liquidity_withdraw_fee      BIGINT NOT NULL DEFAULT 0,
 			dao_reward_percentage           BIGINT NOT NULL DEFAULT 0,
 			created_at                      TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+			updated_at                      TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
 			PRIMARY KEY (chain_id, height)
 		)
-	`
+	`, paramsTable)
 
 	return db.Exec(ctx, query)
 }
 
 // initSupply creates the supply table
 func (db *DB) initSupply(ctx context.Context) error {
-	query := `
-		CREATE TABLE IF NOT EXISTS supply (
+	supplyTable := db.SchemaTable("supply")
+	query := fmt.Sprintf(`
+		CREATE TABLE IF NOT EXISTS %s (
 			chain_id        BIGINT NOT NULL,
 			total           BIGINT NOT NULL DEFAULT 0,
 			staked          BIGINT NOT NULL DEFAULT 0,
@@ -650,17 +689,19 @@ func (db *DB) initSupply(ctx context.Context) error {
 			height          BIGINT NOT NULL,
 			height_time     TIMESTAMP WITH TIME ZONE NOT NULL,
 			created_at      TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+			updated_at      TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
 			PRIMARY KEY (chain_id, height)
 		)
-	`
+	`, supplyTable)
 
 	return db.Exec(ctx, query)
 }
 
 // initTvlSnapshots creates the tvl_snapshots table
 func (db *DB) initTvlSnapshots(ctx context.Context) error {
-	query := `
-		CREATE TABLE IF NOT EXISTS tvl_snapshots (
+	tvlSnapshotsTable := db.SchemaTable("tvl_snapshots")
+	query := fmt.Sprintf(`
+		CREATE TABLE IF NOT EXISTS %s (
 			chain_id        BIGINT NOT NULL,
 			snapshot_hour   TIMESTAMP WITH TIME ZONE NOT NULL,
 			snapshot_height BIGINT NOT NULL,
@@ -670,7 +711,7 @@ func (db *DB) initTvlSnapshots(ctx context.Context) error {
 			computed_at     TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
 			PRIMARY KEY (chain_id, snapshot_hour)
 		)
-	`
+	`, tvlSnapshotsTable)
 
 	return db.Exec(ctx, query)
 }

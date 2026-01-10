@@ -2,6 +2,7 @@ package crosschain
 
 import (
 	"context"
+	"strings"
 )
 
 // initFunctions creates all PL/pgSQL functions
@@ -504,6 +505,29 @@ func (db *DB) createBuildBlockSummaryFunction(ctx context.Context) error {
 		END;
 		$$ LANGUAGE plpgsql;
 	`
+
+	// Replace all table references with schema-qualified names
+	schemaPrefix := db.Schema + "."
+	query = strings.ReplaceAll(query, "FROM blocks", "FROM "+schemaPrefix+"blocks")
+	query = strings.ReplaceAll(query, "FROM txs", "FROM "+schemaPrefix+"txs")
+	query = strings.ReplaceAll(query, "FROM accounts", "FROM "+schemaPrefix+"accounts")
+	query = strings.ReplaceAll(query, "FROM events", "FROM "+schemaPrefix+"events")
+	query = strings.ReplaceAll(query, "FROM validators", "FROM "+schemaPrefix+"validators")
+	query = strings.ReplaceAll(query, "FROM validator_non_signing_info", "FROM "+schemaPrefix+"validator_non_signing_info")
+	query = strings.ReplaceAll(query, "FROM validator_double_signing_info", "FROM "+schemaPrefix+"validator_double_signing_info")
+	query = strings.ReplaceAll(query, "FROM committees", "FROM "+schemaPrefix+"committees")
+	query = strings.ReplaceAll(query, "FROM committee_validators", "FROM "+schemaPrefix+"committee_validators")
+	query = strings.ReplaceAll(query, "FROM committee_payments", "FROM "+schemaPrefix+"committee_payments")
+	query = strings.ReplaceAll(query, "FROM pools", "FROM "+schemaPrefix+"pools")
+	query = strings.ReplaceAll(query, "FROM pool_points_by_holder", "FROM "+schemaPrefix+"pool_points_by_holder")
+	query = strings.ReplaceAll(query, "FROM orders", "FROM "+schemaPrefix+"orders")
+	query = strings.ReplaceAll(query, "FROM dex_prices", "FROM "+schemaPrefix+"dex_prices")
+	query = strings.ReplaceAll(query, "FROM dex_orders", "FROM "+schemaPrefix+"dex_orders")
+	query = strings.ReplaceAll(query, "FROM dex_deposits", "FROM "+schemaPrefix+"dex_deposits")
+	query = strings.ReplaceAll(query, "FROM dex_withdrawals", "FROM "+schemaPrefix+"dex_withdrawals")
+	query = strings.ReplaceAll(query, "FROM params", "FROM "+schemaPrefix+"params")
+	query = strings.ReplaceAll(query, "FROM supply", "FROM "+schemaPrefix+"supply")
+	query = strings.ReplaceAll(query, "INTO block_summaries", "INTO "+schemaPrefix+"block_summaries")
 
 	return db.Exec(ctx, query)
 }

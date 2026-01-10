@@ -11,13 +11,13 @@ import (
 
 // GetBlock retrieves a block by height
 func (db *DB) GetBlock(ctx context.Context, height uint64) (*indexermodels.Block, error) {
-	query := `
+	query := fmt.Sprintf(`
 		SELECT height, hash, timestamp, network_id, parent_hash, proposer_address, size,
 		       num_txs, total_txs, total_vdf_iterations, state_root, transaction_root,
 		       validator_root, next_validator_root
-		FROM blocks
+		FROM %s
 		WHERE height = $1
-	`
+	`, db.SchemaTable("blocks"))
 
 	var block indexermodels.Block
 	err := db.Client.Pool.QueryRow(ctx, query, height).Scan(
@@ -37,7 +37,7 @@ func (db *DB) GetBlock(ctx context.Context, height uint64) (*indexermodels.Block
 
 // GetBlockTime retrieves the timestamp of a block
 func (db *DB) GetBlockTime(ctx context.Context, height uint64) (time.Time, error) {
-	query := `SELECT timestamp FROM blocks WHERE height = $1`
+	query := fmt.Sprintf(`SELECT timestamp FROM %s WHERE height = $1`, db.SchemaTable("blocks"))
 
 	var blockTime time.Time
 	err := db.Client.Pool.QueryRow(ctx, query, height).Scan(&blockTime)
@@ -53,7 +53,7 @@ func (db *DB) GetBlockTime(ctx context.Context, height uint64) (time.Time, error
 
 // GetBlockSummary retrieves a block summary (staging parameter ignored for Postgres)
 func (db *DB) GetBlockSummary(ctx context.Context, height uint64, staging bool) (*indexermodels.BlockSummary, error) {
-	query := `
+	query := fmt.Sprintf(`
 		SELECT height, height_time, total_transactions,
 		       num_txs, num_txs_send, num_txs_stake, num_txs_unstake, num_txs_edit_stake,
 		       num_txs_start_poll, num_txs_vote_poll, num_txs_lock_order, num_txs_close_order,
@@ -82,9 +82,9 @@ func (db *DB) GetBlockSummary(ctx context.Context, height uint64, staging bool) 
 		       num_committee_validators,
 		       num_committee_payments,
 		       supply_changed, supply_total, supply_staked, supply_delegated_only
-		FROM block_summaries
+		FROM %s
 		WHERE height = $1
-	`
+	`, db.SchemaTable("block_summaries"))
 
 	var summary indexermodels.BlockSummary
 	err := db.Client.Pool.QueryRow(ctx, query, height).Scan(
@@ -129,7 +129,7 @@ func (db *DB) GetBlockSummary(ctx context.Context, height uint64, staging bool) 
 
 // HasBlock checks if a block exists at a given height
 func (db *DB) HasBlock(ctx context.Context, height uint64) (bool, error) {
-	query := `SELECT EXISTS(SELECT 1 FROM blocks WHERE height = $1)`
+	query := fmt.Sprintf(`SELECT EXISTS(SELECT 1 FROM %s WHERE height = $1)`, db.SchemaTable("blocks"))
 
 	var exists bool
 	err := db.Client.Pool.QueryRow(ctx, query, height).Scan(&exists)
@@ -142,15 +142,15 @@ func (db *DB) HasBlock(ctx context.Context, height uint64) (bool, error) {
 
 // GetHighestBlockBeforeTime retrieves the highest block before a target time
 func (db *DB) GetHighestBlockBeforeTime(ctx context.Context, targetTime time.Time) (*indexermodels.Block, error) {
-	query := `
+	query := fmt.Sprintf(`
 		SELECT height, hash, time, network_id, parent_hash, proposer_address, size,
 		       num_txs, total_txs, total_vdf_iterations, state_root, transaction_root,
 		       validator_root, next_validator_root
-		FROM blocks
+		FROM %s
 		WHERE time <= $1
 		ORDER BY height DESC
 		LIMIT 1
-	`
+	`, db.SchemaTable("blocks"))
 
 	var block indexermodels.Block
 	err := db.Client.Pool.QueryRow(ctx, query, targetTime).Scan(
@@ -174,16 +174,16 @@ func (db *DB) GetEventsByTypeAndHeight(ctx context.Context, height uint64, stagi
 		return nil, fmt.Errorf("at least one event type must be specified")
 	}
 
-	query := `
+	query := fmt.Sprintf(`
 		SELECT height, chain_id, address, reference, event_type, block_height,
 		       amount, sold_amount, bought_amount, local_amount, remote_amount,
 		       success, local_origin, order_id, points_received, points_burned,
 		       data, seller_receive_address, buyer_send_address, sellers_send_address,
 		       msg, height_time
-		FROM events
+		FROM %s
 		WHERE height = $1 AND event_type = ANY($2)
 		ORDER BY event_type, address
-	`
+	`, db.SchemaTable("events"))
 
 	rows, err := db.Client.Pool.Query(ctx, query, height, eventTypes)
 	if err != nil {
@@ -212,12 +212,12 @@ func (db *DB) GetEventsByTypeAndHeight(ctx context.Context, height uint64, stagi
 
 // GetRewardSlashEvents retrieves reward and slash events (optimized query)
 func (db *DB) GetRewardSlashEvents(ctx context.Context, height uint64, staging bool) ([]EventRewardSlash, error) {
-	query := `
+	query := fmt.Sprintf(`
 		SELECT address, amount, event_type
-		FROM events
+		FROM %s
 		WHERE height = $1 AND event_type IN ('EventReward', 'EventSlash')
 		ORDER BY address
-	`
+	`, db.SchemaTable("events"))
 
 	rows, err := db.Client.Pool.Query(ctx, query, height)
 	if err != nil {
@@ -242,14 +242,14 @@ func (db *DB) GetRewardSlashEvents(ctx context.Context, height uint64, staging b
 
 // GetValidatorLifecycleEvents retrieves validator lifecycle events
 func (db *DB) GetValidatorLifecycleEvents(ctx context.Context, height uint64, staging bool) ([]EventLifecycle, error) {
-	query := `
+	query := fmt.Sprintf(`
 		SELECT address, event_type
-		FROM events
+		FROM %s
 		WHERE height = $1 AND event_type IN (
 			'EventAutoPause', 'EventAutoBeginUnstaking', 'EventAutoFinishUnstaking'
 		)
 		ORDER BY address
-	`
+	`, db.SchemaTable("events"))
 
 	rows, err := db.Client.Pool.Query(ctx, query, height)
 	if err != nil {
@@ -272,12 +272,12 @@ func (db *DB) GetValidatorLifecycleEvents(ctx context.Context, height uint64, st
 
 // GetOrderBookSwapEvents retrieves order book swap events
 func (db *DB) GetOrderBookSwapEvents(ctx context.Context, height uint64, staging bool) ([]EventWithOrderID, error) {
-	query := `
+	query := fmt.Sprintf(`
 		SELECT order_id, event_type
-		FROM events
+		FROM %s
 		WHERE height = $1 AND event_type = 'EventOrderBookSwap' AND order_id != ''
 		ORDER BY order_id
-	`
+	`, db.SchemaTable("events"))
 
 	rows, err := db.Client.Pool.Query(ctx, query, height)
 	if err != nil {
@@ -300,12 +300,12 @@ func (db *DB) GetOrderBookSwapEvents(ctx context.Context, height uint64, staging
 
 // GetDexOrderEvents retrieves DEX order events
 func (db *DB) GetDexOrderEvents(ctx context.Context, height uint64, staging bool) ([]EventWithOrderID, error) {
-	query := `
+	query := fmt.Sprintf(`
 		SELECT order_id, event_type
-		FROM events
+		FROM %s
 		WHERE height = $1 AND event_type = 'EventDexSwap' AND order_id != ''
 		ORDER BY order_id
-	`
+	`, db.SchemaTable("events"))
 
 	rows, err := db.Client.Pool.Query(ctx, query, height)
 	if err != nil {
@@ -332,12 +332,12 @@ func (db *DB) GetEventCountsByType(ctx context.Context, height uint64, staging b
 		return nil, fmt.Errorf("at least one event type must be specified")
 	}
 
-	query := `
+	query := fmt.Sprintf(`
 		SELECT event_type, COUNT(*) as count
-		FROM events
+		FROM %s
 		WHERE height = $1 AND event_type = ANY($2)
 		GROUP BY event_type
-	`
+	`, db.SchemaTable("events"))
 
 	rows, err := db.Client.Pool.Query(ctx, query, height, eventTypes)
 	if err != nil {
@@ -361,14 +361,14 @@ func (db *DB) GetEventCountsByType(ctx context.Context, height uint64, staging b
 
 // GetDexBatchEvents retrieves DEX batch events
 func (db *DB) GetDexBatchEvents(ctx context.Context, height uint64, staging bool) ([]EventDexBatch, error) {
-	query := `
+	query := fmt.Sprintf(`
 		SELECT order_id, event_type, amount
-		FROM events
+		FROM %s
 		WHERE height = $1 AND event_type IN (
 			'EventDexLiquidityDeposit', 'EventDexLiquidityWithdraw', 'EventDexSwap'
 		) AND order_id != ''
 		ORDER BY order_id
-	`
+	`, db.SchemaTable("events"))
 
 	rows, err := db.Client.Pool.Query(ctx, query, height)
 	if err != nil {

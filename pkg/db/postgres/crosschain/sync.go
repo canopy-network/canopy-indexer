@@ -76,13 +76,14 @@ func (db *DB) createSyncTrigger(ctx context.Context, tx pgx.Tx, chainID uint64, 
 	}
 
 	// Create trigger on chain table
+	chainSchemaTable := fmt.Sprintf("%s.%s", chainDBName, cfg.TableName)
 	createTriggerSQL := fmt.Sprintf(`
-		DROP TRIGGER IF EXISTS %s ON %s.%s;
+		DROP TRIGGER IF EXISTS %s ON %s;
 		CREATE TRIGGER %s
-		AFTER INSERT ON %s.%s
+		AFTER INSERT ON %s
 		FOR EACH ROW
 		EXECUTE FUNCTION %s();
-	`, triggerName, chainDBName, cfg.TableName, triggerName, chainDBName, cfg.TableName, functionName)
+	`, triggerName, chainSchemaTable, triggerName, chainSchemaTable, functionName)
 
 	if _, err := tx.Exec(ctx, createTriggerSQL); err != nil {
 		return fmt.Errorf("failed to create trigger: %w", err)
