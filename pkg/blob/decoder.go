@@ -228,7 +228,7 @@ func buildBlockData(chainID uint64, current, previous *decodedBlob) (*BlockData,
 	data.Transactions = current.block.Transactions
 	data.Events = current.block.Events
 
-	// Simple fields from current blob
+	// Current height data
 	data.Accounts = current.accounts
 	data.Orders = current.orders
 	data.DexPrices = current.dexPrices
@@ -237,8 +237,6 @@ func buildBlockData(chainID uint64, current, previous *decodedBlob) (*BlockData,
 	data.Committees = current.committeesData
 	data.SubsidizedCommittees = current.subsidizedCommittees
 	data.RetiredCommittees = current.retiredCommittees
-
-	// Current height data for change detection
 	data.ValidatorsCurrent = current.validators
 	data.PoolsCurrent = current.pools
 	data.NonSignersCurrent = current.nonSigners
@@ -248,6 +246,12 @@ func buildBlockData(chainID uint64, current, previous *decodedBlob) (*BlockData,
 
 	// Previous height data for change detection (H-1)
 	if previous != nil {
+		data.AccountsPrevious = previous.accounts
+		data.OrdersPrevious = previous.orders
+		data.DexPricesPrevious = previous.dexPrices
+		data.ParamsPrevious = previous.params
+		data.SupplyPrevious = previous.supply
+		data.CommitteesPrevious = previous.committeesData
 		data.ValidatorsPrevious = previous.validators
 		data.PoolsPrevious = previous.pools
 		data.NonSignersPrevious = previous.nonSigners

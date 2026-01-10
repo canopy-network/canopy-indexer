@@ -705,13 +705,13 @@ func (idx *Indexer) convertToBlockData(data *blob.BlockData, accountsPrevious []
 	result.Block = convertBlock(data.Block, data.ChainID, data.BlockTime)
 	result.Transactions = convertTransactions(data.Transactions, data.ChainID, data.Height, data.BlockTime)
 	result.Events = convertEvents(data.Events, data.ChainID, data.Height, data.BlockTime)
-	result.Accounts = ConvertAccountsWithChangeDetection(data.Accounts, result.AccountsPrevious, data.Height, data.BlockTime)
+	result.Accounts = ConvertAccountsWithChangeDetection(data.Accounts, data.AccountsPrevious, data.Height, data.BlockTime)
 	result.Pools = convertPools(data.PoolsCurrent, data.PoolsPrevious, data.Height, data.BlockTime)
-	result.Orders = ConvertOrdersWithChangeDetection(data.Orders, nil, data.Height, data.BlockTime)
-	result.DexPrices = ConvertDexPricesWithChangeDetection(data.DexPrices, nil, data.Height, data.BlockTime)
-	result.Params = ConvertParamsWithChangeDetection(data.Params, nil, data.Height, data.BlockTime)
-	result.Supply = ConvertSupplyWithChangeDetection(data.Supply, nil, data.Height, data.BlockTime)
-	result.Committees = ConvertCommitteesWithChangeDetection(data.Committees, nil, data.Height, data.BlockTime)
+	result.Orders = ConvertOrdersWithChangeDetection(data.Orders, data.OrdersPrevious, data.Height, data.BlockTime)
+	result.DexPrices = ConvertDexPricesWithChangeDetection(data.DexPrices, data.DexPricesPrevious, data.Height, data.BlockTime)
+	result.Params = ConvertParamsWithChangeDetection(data.Params, data.ParamsPrevious, data.Height, data.BlockTime)
+	result.Supply = ConvertSupplyWithChangeDetection(data.Supply, data.SupplyPrevious, data.Height, data.BlockTime)
+	result.Committees = ConvertCommitteesWithChangeDetection(data.Committees, data.CommitteesPrevious, data.Height, data.BlockTime)
 
 	// Change detection conversions
 	result.Validators, result.CommitteeValidators = ConvertValidatorsWithChangeDetection(

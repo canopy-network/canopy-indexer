@@ -17,15 +17,28 @@ type BlockData struct {
 	// Block data (fetched with retry logic)
 	Block *lib.BlockResult
 
-	// Simple fetches (single RPC call each)
+	// Simple fetches (single RPC call each) - always current height
 	Transactions []*lib.TxResult
 	Events       []*lib.Event
-	Accounts     []*fsm.Account
-	Orders       []*lib.SellOrder
-	DexPrices    []*lib.DexPrice
-	Params       *fsm.Params
-	Supply       *fsm.Supply
-	Committees   []*lib.CommitteeData
+
+	// Change detection pairs: current + previous (H-1)
+	Accounts         []*fsm.Account
+	AccountsPrevious []*fsm.Account
+
+	Orders         []*lib.SellOrder
+	OrdersPrevious []*lib.SellOrder
+
+	DexPrices         []*lib.DexPrice
+	DexPricesPrevious []*lib.DexPrice
+
+	Params         *fsm.Params
+	ParamsPrevious *fsm.Params
+
+	Supply         *fsm.Supply
+	SupplyPrevious *fsm.Supply
+
+	Committees         []*lib.CommitteeData
+	CommitteesPrevious []*lib.CommitteeData
 
 	// Shared data (used by both validators and committees)
 	// Consolidates duplicate RPC calls
