@@ -10,8 +10,8 @@ import (
 
 	"github.com/canopy-network/canopy-indexer/internal/indexer"
 	"github.com/canopy-network/canopy-indexer/pkg/blob"
-	"github.com/canopy-network/canopy-indexer/pkg/rpc"
 	"github.com/canopy-network/canopy-indexer/pkg/db/postgres"
+	"github.com/canopy-network/canopy-indexer/pkg/rpc"
 	"golang.org/x/sync/errgroup"
 )
 

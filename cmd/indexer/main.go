@@ -15,9 +15,10 @@ import (
 	"github.com/canopy-network/canopy-indexer/internal/publisher"
 	"github.com/canopy-network/canopy-indexer/internal/worker"
 	"github.com/canopy-network/canopy-indexer/pkg/blob"
+	"github.com/canopy-network/canopy-indexer/pkg/db/postgres"
+	"github.com/canopy-network/canopy-indexer/pkg/db/postgres/admin"
 	"github.com/canopy-network/canopy-indexer/pkg/rpc"
 	"github.com/canopy-network/canopy/fsm"
-	"github.com/canopy-network/canopy-indexer/pkg/db/postgres"
 	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
@@ -34,21 +35,56 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Setup logging
-	setupLogging(cfg.LogLevel)
-
-	slog.Info("starting canopy-indexer",
-		"chains", len(cfg.Chains),
-		"ws_enabled", cfg.WSEnabled,
-	)
-
-	// Connect to PostgreSQL using postgres package
+	// Create logger for database connections
 	logger, err := zap.NewProduction()
 	if err != nil {
 		slog.Error("failed to create logger", "err", err)
 		os.Exit(1)
 	}
 	defer logger.Sync()
+
+	// Connect to admin database for chain discovery
+	adminPoolConfig := postgres.GetPoolConfigForComponent("admin")
+	adminDB, err := admin.NewWithPoolConfig(ctx, logger, "admin", *adminPoolConfig)
+	if err != nil {
+		slog.Error("failed to connect to admin database", "err", err)
+		os.Exit(1)
+	}
+	defer adminDB.Close()
+
+	// Discover chains dynamically
+	adminChains, err := adminDB.ListChain(ctx, false)
+	if err != nil {
+		slog.Error("failed to list chains from admin database", "err", err)
+		os.Exit(1)
+	}
+
+	// Filter and convert chains
+	var chains []config.ChainConfig
+	for _, chain := range adminChains {
+		if chain.Deleted == 1 || chain.Paused == 1 || len(chain.RPCEndpoints) == 0 {
+			continue
+		}
+		chains = append(chains, config.ChainConfig{
+			ChainID: chain.ChainID,
+			RPCURL:  chain.RPCEndpoints[0],
+		})
+	}
+
+	if len(chains) == 0 {
+		slog.Error("no active chains found in admin database")
+		os.Exit(1)
+	}
+
+	// Setup logging
+	setupLogging(cfg.LogLevel)
+
+	slog.Info("starting canopy-indexer",
+		"chains", len(chains),
+		"ws_enabled", cfg.WSEnabled,
+	)
+
+	// Connect to PostgreSQL using postgres package
 
 	// Use default pool config for indexer
 	poolConfig := postgres.GetPoolConfigForComponent("indexer_chain")
@@ -70,7 +106,7 @@ func main() {
 
 	// Create RPC clients for all chains
 	rpcClients := make(map[uint64]*rpc.HTTPClient)
-	for _, chain := range cfg.Chains {
+	for _, chain := range chains {
 		rpcClients[chain.ChainID] = rpc.NewHTTPWithOpts(rpc.Opts{
 			Endpoints: []string{chain.RPCURL},
 			RPS:       cfg.RPCRPS,
@@ -87,14 +123,14 @@ func main() {
 	defer pub.Close()
 
 	// Create indexer
-	idx, err := indexer.New(ctx, logger, cfg.Chains[0].ChainID)
+	idx, err := indexer.New(ctx, logger, chains[0].ChainID)
 	if err != nil {
 		slog.Error("failed to create indexer", "err", err)
 		os.Exit(1)
 	}
 
 	// Set RPC clients for all chains
-	for _, chain := range cfg.Chains {
+	for _, chain := range chains {
 		idx.SetRPCClient(chain.ChainID, rpcClients[chain.ChainID])
 	}
 
@@ -157,7 +193,7 @@ func main() {
 
 	// Optional: Periodic gap health check for all chains
 	if cfg.BackfillCheckInterval > 0 {
-		for _, chain := range cfg.Chains {
+		for _, chain := range chains {
 			chainID := chain.ChainID
 			rpcClient := rpcClients[chainID]
 			bf := backfill.New(rpcClient, &client, idx, chainID, nil)

@@ -15,8 +15,6 @@ type ChainConfig struct {
 
 // Config holds all configuration for the indexer.
 type Config struct {
-	// Chains to index (hardcoded mock nodes)
-	Chains []ChainConfig
 
 	// RPC rate limiting
 	RPCRPS   int
@@ -50,23 +48,10 @@ type Config struct {
 	BackfillCheckInterval time.Duration // Periodic gap check interval (0 = disabled)
 
 	// HTTP API
-	HTTPEnabled       bool
-	HTTPAddr          string
-	AdminToken        string
-	AdminPostgresURL  string
-}
-
-// MockChains returns the hardcoded list of 100 mock chain configurations.
-// Chain IDs 1000-1099 on ports 61000-61099.
-func MockChains() []ChainConfig {
-	chains := make([]ChainConfig, 100)
-	for i := 0; i < 100; i++ {
-		chains[i] = ChainConfig{
-			ChainID: uint64(1000 + i),
-			RPCURL:  fmt.Sprintf("http://rpc-mock:%d", 61000+i),
-		}
-	}
-	return chains
+	HTTPEnabled      bool
+	HTTPAddr         string
+	AdminToken       string
+	AdminPostgresURL string
 }
 
 // Load loads configuration from environment variables.
@@ -161,9 +146,9 @@ func Load() (*Config, error) {
 		}
 	}
 
-	// Mock chains (disabled by default)
-	if v := os.Getenv("MOCK_CHAINS_ENABLED"); v == "true" || v == "1" {
-		cfg.Chains = MockChains()
+	// Admin DB is required for dynamic chain discovery
+	if cfg.AdminPostgresURL == "" {
+		return nil, fmt.Errorf("ADMIN_POSTGRES_URL is required for chain discovery")
 	}
 
 	// Default Canopy node for blob mode (can be overridden by WS_BLOB_URL)
@@ -190,9 +175,6 @@ func Load() (*Config, error) {
 	}
 
 	cfg.AdminPostgresURL = os.Getenv("ADMIN_POSTGRES_URL")
-	if cfg.AdminPostgresURL == "" {
-		cfg.AdminPostgresURL = cfg.PostgresURL // Fallback to main DB
-	}
 
 	return cfg, nil
 }

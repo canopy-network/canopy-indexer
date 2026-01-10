@@ -6,10 +6,10 @@ import (
 	"time"
 
 	"github.com/canopy-network/canopy-indexer/pkg/blob"
+	indexermodels "github.com/canopy-network/canopy-indexer/pkg/db/models/indexer"
 	"github.com/canopy-network/canopy-indexer/pkg/transform"
 	"github.com/canopy-network/canopy/fsm"
 	"github.com/canopy-network/canopy/lib"
-	indexermodels "github.com/canopy-network/canopy-indexer/pkg/db/models/indexer"
 )
 
 // =============================================================================

@@ -161,4 +161,3 @@ func (db *DB) InsertChain(ctx context.Context, c *adminmodels.Chain) error {
 		c.UpdatedAt,
 	)
 }
-

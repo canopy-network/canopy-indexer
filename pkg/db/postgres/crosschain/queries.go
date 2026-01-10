@@ -472,20 +472,20 @@ func (db *DB) QueryLatestTransactions(ctx context.Context, opts QueryOptions) ([
 func (db *DB) QueryLatestEntity(ctx context.Context, entityName string, opts QueryOptions) ([]map[string]interface{}, *QueryMetadata, error) {
 	// Validate entity name (prevent SQL injection)
 	allowedEntities := map[string]bool{
-		"accounts":                          true,
-		"validators":                        true,
-		"validator_non_signing_info":        true,
-		"validator_double_signing_info":     true,
-		"pools":                             true,
-		"pool_points_by_holder":             true,
-		"orders":                            true,
-		"dex_orders":                        true,
-		"dex_deposits":                      true,
-		"dex_withdrawals":                   true,
-		"block_summaries":                   true,
-		"committee_payments":                true,
-		"events":                            true,
-		"txs":                               true,
+		"accounts":                      true,
+		"validators":                    true,
+		"validator_non_signing_info":    true,
+		"validator_double_signing_info": true,
+		"pools":                         true,
+		"pool_points_by_holder":         true,
+		"orders":                        true,
+		"dex_orders":                    true,
+		"dex_deposits":                  true,
+		"dex_withdrawals":               true,
+		"block_summaries":               true,
+		"committee_payments":            true,
+		"events":                        true,
+		"txs":                           true,
 	}
 
 	if !allowedEntities[entityName] {

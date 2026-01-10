@@ -138,7 +138,7 @@ func (db *DB) GetCleanableHeights(ctx context.Context, chainID uint64, lookbackH
 func (db *DB) IndexProgressHistory(ctx context.Context, chainID uint64, hours, intervalMinutes int) ([]adminmodels.ProgressPoint, error) {
 	query := fmt.Sprintf(`
 		SELECT
-			date_trunc('minute', indexed_at - INTERVAL '%%1 second' * EXTRACT(second FROM indexed_at)) AS time_bucket,
+			date_trunc('minute', indexed_at - INTERVAL '%d second' * EXTRACT(second FROM indexed_at)) AS time_bucket,
 			MAX(height) AS max_height,
 			AVG(indexing_time) AS avg_latency,
 			AVG(indexing_time_ms) AS avg_processing_time,

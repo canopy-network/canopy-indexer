@@ -13,8 +13,9 @@ import (
 	"github.com/canopy-network/canopy-indexer/internal/backfill"
 	"github.com/canopy-network/canopy-indexer/internal/config"
 	"github.com/canopy-network/canopy-indexer/internal/indexer"
-	"github.com/canopy-network/canopy-indexer/pkg/rpc"
 	"github.com/canopy-network/canopy-indexer/pkg/db/postgres"
+	"github.com/canopy-network/canopy-indexer/pkg/db/postgres/admin"
+	"github.com/canopy-network/canopy-indexer/pkg/rpc"
 	"go.uber.org/zap"
 )
 
@@ -39,6 +40,47 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Create logger for database connections
+	logger, err := zap.NewProduction()
+	if err != nil {
+		slog.Error("failed to create logger", "err", err)
+		os.Exit(1)
+	}
+	defer logger.Sync()
+
+	// Connect to admin database for chain discovery
+	adminPoolConfig := postgres.GetPoolConfigForComponent("admin")
+	adminDB, err := admin.NewWithPoolConfig(ctx, logger, "admin", *adminPoolConfig)
+	if err != nil {
+		slog.Error("failed to connect to admin database", "err", err)
+		os.Exit(1)
+	}
+	defer adminDB.Close()
+
+	// Discover chains dynamically
+	adminChains, err := adminDB.ListChain(ctx, false)
+	if err != nil {
+		slog.Error("failed to list chains from admin database", "err", err)
+		os.Exit(1)
+	}
+
+	// Filter and convert chains
+	var allChains []config.ChainConfig
+	for _, chain := range adminChains {
+		if chain.Deleted == 1 || chain.Paused == 1 || len(chain.RPCEndpoints) == 0 {
+			continue
+		}
+		allChains = append(allChains, config.ChainConfig{
+			ChainID: chain.ChainID,
+			RPCURL:  chain.RPCEndpoints[0],
+		})
+	}
+
+	if len(allChains) == 0 {
+		slog.Error("no active chains found in admin database")
+		os.Exit(1)
+	}
+
 	// Setup logging
 	setupLogging(cfg.LogLevel)
 
@@ -47,7 +89,7 @@ func main() {
 	if *chainID > 0 {
 		// Find the specific chain
 		found := false
-		for _, chain := range cfg.Chains {
+		for _, chain := range allChains {
 			if chain.ChainID == *chainID {
 				chainsToBackfill = append(chainsToBackfill, chain)
 				found = true
@@ -55,11 +97,11 @@ func main() {
 			}
 		}
 		if !found {
-			slog.Error("chain not found in configuration", "chain_id", *chainID)
+			slog.Error("chain not found in admin database", "chain_id", *chainID)
 			os.Exit(1)
 		}
 	} else {
-		chainsToBackfill = cfg.Chains
+		chainsToBackfill = allChains
 	}
 
 	slog.Info("canopy-indexer backfill starting",
@@ -67,13 +109,6 @@ func main() {
 	)
 
 	// Connect to PostgreSQL using postgres package
-	logger, err := zap.NewProduction()
-	if err != nil {
-		slog.Error("failed to create logger", "err", err)
-		os.Exit(1)
-	}
-	defer logger.Sync()
-
 	// Use default pool config for backfill
 	poolConfig := postgres.GetPoolConfigForComponent("indexer_chain")
 	client, err := postgres.New(ctx, logger, "backfill", poolConfig)

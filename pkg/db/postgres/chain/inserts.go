@@ -6,8 +6,8 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
-	"github.com/canopy-network/canopy-indexer/pkg/db/postgres"
 	indexermodels "github.com/canopy-network/canopy-indexer/pkg/db/models/indexer"
+	"github.com/canopy-network/canopy-indexer/pkg/db/postgres"
 )
 
 // insertBlock inserts a block into the blocks table

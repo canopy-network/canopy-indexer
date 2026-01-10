@@ -1,0 +1,50 @@
+services:
+  canopy-node-1:
+    container_name: canopy-node-1
+    image: alpine:3.19
+    ports:
+      - 50000:50000 # Wallet
+      - 50001:50001 # Explorer
+      - 50002:50002 # RPC
+      - 50003:50003 # Admin RPC
+      - 9001:9001   # TCP P2P
+      - 6060:6060   # Debug
+      - 9090:9090   # Metrics
+    networks:
+      - canopy-indexer-network
+    command: ["/app/bin/canopy", "start"]
+    volumes:
+      - canopy-node-1-data:/root/.canopy
+      - ../canopy/blob/bin/canopy-linux:/app/bin/canopy:ro
+    working_dir: /app
+    restart: unless-stopped
+    tty: true
+
+  canopy-node-2:
+    container_name: canopy-node-2
+    image: alpine:3.19
+    ports:
+      - 40000:40000 # Wallet
+      - 40001:40001 # Explorer
+      - 40002:40002 # RPC
+      - 40003:40003 # Admin RPC
+      - 9002:9002   # TCP P2P
+      - 6061:6060   # Debug
+      - 9091:9091   # Metrics
+    networks:
+      - canopy-indexer-network
+    command: ["/app/bin/canopy", "start"]
+    volumes:
+      - canopy-node-2-data:/root/.canopy
+      - ../canopy/blob/bin/canopy-linux:/app/bin/canopy:ro
+    working_dir: /app
+    restart: unless-stopped
+    tty: true
+
+networks:
+  canopy-indexer-network:
+    external: true
+
+volumes:
+  canopy-node-1-data:
+  canopy-node-2-data:

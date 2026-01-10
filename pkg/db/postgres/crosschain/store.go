@@ -104,13 +104,13 @@ type QueryMetadata struct {
 // =============================================================================
 
 type AccountCrossChain struct {
-	ChainID     uint64 `db:"chain_id"`
-	Address     string `db:"address"`
-	Amount      int64  `db:"amount"`
-	Rewards     int64  `db:"rewards"`
-	Slashes     int64  `db:"slashes"`
-	Height      uint64 `db:"height"`
-	HeightTime  string `db:"height_time"`
+	ChainID    uint64 `db:"chain_id"`
+	Address    string `db:"address"`
+	Amount     int64  `db:"amount"`
+	Rewards    int64  `db:"rewards"`
+	Slashes    int64  `db:"slashes"`
+	Height     uint64 `db:"height"`
+	HeightTime string `db:"height_time"`
 }
 
 type ValidatorCrossChain struct {
@@ -223,23 +223,23 @@ type DexWithdrawalCrossChain struct {
 }
 
 type BlockSummaryCrossChain struct {
-	ChainID            uint64 `db:"chain_id"`
-	Height             uint64 `db:"height"`
-	HeightTime         string `db:"height_time"`
-	TotalTransactions  int64  `db:"total_transactions"`
-	NumTxs             int    `db:"num_txs"`
-	NumAccounts        int    `db:"num_accounts"`
-	NumEvents          int    `db:"num_events"`
-	NumValidators      int    `db:"num_validators"`
-	NumCommittees      int    `db:"num_committees"`
-	NumPools           int    `db:"num_pools"`
-	NumOrders          int    `db:"num_orders"`
-	NumDexOrders       int    `db:"num_dex_orders"`
-	NumDexDeposits     int    `db:"num_dex_deposits"`
-	NumDexWithdrawals  int    `db:"num_dex_withdrawals"`
-	SupplyTotal        int64  `db:"supply_total"`
-	SupplyStaked       int64  `db:"supply_staked"`
-	SupplyDelegatedOnly int64 `db:"supply_delegated_only"`
+	ChainID             uint64 `db:"chain_id"`
+	Height              uint64 `db:"height"`
+	HeightTime          string `db:"height_time"`
+	TotalTransactions   int64  `db:"total_transactions"`
+	NumTxs              int    `db:"num_txs"`
+	NumAccounts         int    `db:"num_accounts"`
+	NumEvents           int    `db:"num_events"`
+	NumValidators       int    `db:"num_validators"`
+	NumCommittees       int    `db:"num_committees"`
+	NumPools            int    `db:"num_pools"`
+	NumOrders           int    `db:"num_orders"`
+	NumDexOrders        int    `db:"num_dex_orders"`
+	NumDexDeposits      int    `db:"num_dex_deposits"`
+	NumDexWithdrawals   int    `db:"num_dex_withdrawals"`
+	SupplyTotal         int64  `db:"supply_total"`
+	SupplyStaked        int64  `db:"supply_staked"`
+	SupplyDelegatedOnly int64  `db:"supply_delegated_only"`
 }
 
 type CommitteePaymentCrossChain struct {

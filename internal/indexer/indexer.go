@@ -7,11 +7,11 @@ import (
 	"time"
 
 	"github.com/canopy-network/canopy-indexer/pkg/blob"
-	"github.com/canopy-network/canopy-indexer/pkg/rpc"
 	indexermodels "github.com/canopy-network/canopy-indexer/pkg/db/models/indexer"
 	"github.com/canopy-network/canopy-indexer/pkg/db/postgres"
 	"github.com/canopy-network/canopy-indexer/pkg/db/postgres/admin"
 	"github.com/canopy-network/canopy-indexer/pkg/db/postgres/chain"
+	"github.com/canopy-network/canopy-indexer/pkg/rpc"
 	"github.com/jackc/pgx/v5"
 	"go.uber.org/zap"
 )
