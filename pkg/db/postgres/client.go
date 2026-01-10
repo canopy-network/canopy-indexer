@@ -316,7 +316,6 @@ func GetPoolConfigForComponent(component string) *PoolConfig {
 // SanitizeName sanitizes the provided database name to be compatible with PostgreSQL
 func SanitizeName(name string) string {
 	// PostgreSQL names are case-insensitive and use underscores
-	// Same logic as ClickHouse for consistency
 	return name // For now, keep it simple - can add more sanitization if needed
 }
 

@@ -4,7 +4,7 @@ import (
 	"context"
 )
 
-// initTransactions creates the txs table matching the ClickHouse Transaction model
+// initTransactions creates the txs table matching the Transaction model
 // This matches pkg/db/models/indexer/tx.go:52-113 (33 fields)
 func (db *DB) initTransactions(ctx context.Context) error {
 	query := `
@@ -21,7 +21,7 @@ func (db *DB) initTransactions(ctx context.Context) error {
 			network_id INTEGER NOT NULL,                   -- UInt32 -> INTEGER
 
 			-- Common filterable fields
-			message_type TEXT NOT NULL,  -- LowCardinality(String) in ClickHouse
+			message_type TEXT NOT NULL,  -- Transaction message type
 			signer TEXT NOT NULL,        -- Transaction signer address
 			amount BIGINT DEFAULT 0,     -- Amount transferred/staked/delegated (0 for votes, etc.)
 			fee BIGINT NOT NULL,         -- Transaction fee

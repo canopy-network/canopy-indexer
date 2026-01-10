@@ -8,9 +8,8 @@ const EventsProductionTableName = "events"
 const EventsStagingTableName = "events_staging"
 
 // EventColumns defines the schema for the events table.
-// Uses non-Nullable types with defaults (0 for numbers, ” for strings, false for bools)
-// to avoid UInt8 null-mask overhead per column. ClickHouse optimization guide:
-// "Avoid Nullable columns – Each adds UInt8 null-mask overhead."
+// Uses non-Nullable types with defaults (0 for numbers, "" for strings, false for bools)
+// for efficient storage and querying.
 // Codecs are optimized for 15x compression ratio:
 // - DoubleDelta,LZ4 for sequential/monotonic values (height, timestamps)
 // - ZSTD(1) for strings (addresses, hashes, event_type)
@@ -48,7 +47,7 @@ var EventColumns = []ColumnDef{
 //
 // Common queryable fields are typed columns.
 // Type-specific fields are stored in the compressed 'msg' JSON field.
-// ClickHouse's columnar storage ensures queries only read the columns they need.
+// Queries only read the columns they need.
 //
 // Non-Nullable with defaults: Uses value types instead of pointers to avoid
 // UInt8 null-mask overhead. Default values (0, false, ”) indicate "not applicable".

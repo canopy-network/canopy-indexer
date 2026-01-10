@@ -1,5 +1,5 @@
 -- canopy-indexer schema
--- Mirrors ClickHouse canopyx_cross_chain database for PostgreSQL
+-- PostgreSQL schema for cross-chain indexing
 
 -- ============================================================================
 -- ENUMS

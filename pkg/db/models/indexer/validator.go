@@ -54,7 +54,7 @@ type Validator struct {
 	MaxPausedHeight uint64 `ch:"max_paused_height" json:"max_paused_height"` // Height when pause expires (0 = not paused)
 	UnstakingHeight uint64 `ch:"unstaking_height" json:"unstaking_height"`   // Height when unstaking completes (0 = not unstaking)
 
-	// Delegation settings (stored as UInt8 in ClickHouse: 0=false, 1=true)
+	// Delegation settings (boolean values)
 	Delegate bool `ch:"delegate" json:"delegate"` // Whether validator accepts delegations
 	Compound bool `ch:"compound" json:"compound"` // Whether rewards are auto-compounded
 

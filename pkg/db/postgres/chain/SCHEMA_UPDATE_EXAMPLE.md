@@ -1,6 +1,6 @@
 # Schema Update Example: Transactions Table
 
-This document shows the before/after of updating a Postgres table schema to match the actual ClickHouse model.
+This document shows the before/after of updating a Postgres table schema to match the complete data model.
 
 ## Before: Simplified Schema (INCORRECT)
 
@@ -108,7 +108,7 @@ CREATE TABLE IF NOT EXISTS txs (
 ### 1. Type Corrections
 ```diff
 - tx_index INTEGER NOT NULL
-+ tx_index SMALLINT NOT NULL  -- Matches ClickHouse UInt16
++ tx_index SMALLINT NOT NULL  -- UInt16 mapping
 ```
 
 ### 2. Added Time Fields
@@ -172,7 +172,7 @@ CREATE TABLE IF NOT EXISTS txs (
 
 ## How to Apply This Pattern to Other Tables
 
-### Step 1: Find the ClickHouse Model
+### Step 1: Find the Data Model
 
 ```bash
 # Look in pkg/db/models/indexer/ for the model definition
@@ -199,7 +199,7 @@ type Transaction struct {
 
 ### Step 3: Map Each Field to Postgres Type
 
-| Go Type | ClickHouse Type | Postgres Type | Notes |
+| Go Type | Data Type | Postgres Type | Notes |
 |---------|----------------|---------------|-------|
 | `uint64` | `UInt64` | `BIGINT` | |
 | `uint32` | `UInt32` | `INTEGER` | |
@@ -214,7 +214,7 @@ type Transaction struct {
 
 ### Step 4: Add DEFAULT Values
 
-For optional fields, add `DEFAULT` values to match ClickHouse behavior:
+For optional fields, add `DEFAULT` values for efficient storage:
 
 ```sql
 -- Instead of NULL for missing values, use defaults
@@ -223,7 +223,7 @@ amount BIGINT DEFAULT 0,                 -- Zero default
 success BOOLEAN DEFAULT false,           -- False default
 ```
 
-This matches ClickHouse's approach: "Uses non-Nullable types with defaults to avoid UInt8 null-mask overhead."
+This approach uses non-Nullable types with defaults for efficient storage.
 
 ### Step 5: Create Appropriate Indexes
 
@@ -327,6 +327,6 @@ CREATE INDEX idx_events_order ON events(order_id) WHERE order_id != '';
 ## Summary
 
 **Before**: 8 fields, missing critical data
-**After**: 21 fields, matches ClickHouse model completely
+**After**: 21 fields, complete data model
 
 The updated schema now supports all transaction types without losing data in the generic `msg` field.

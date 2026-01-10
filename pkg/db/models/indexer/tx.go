@@ -52,8 +52,7 @@ var TransactionColumns = []ColumnDef{
 // Transaction stores ALL transaction data in a single table.
 // Common queryable fields are typed columns.
 // Type-specific fields are stored in the compressed 'msg' JSON field.
-// ClickHouse's columnar storage ensures list queries only read the columns they need.
-// Uses non-Nullable types with defaults (0, ”, 0.0) to avoid UInt8 null-mask overhead.
+// Uses non-Nullable types with defaults (0, "", 0.0) for efficient storage.
 type Transaction struct {
 	// Primary key
 	Height  uint64 `ch:"height" json:"height"`

@@ -13,7 +13,7 @@ type ColumnDef struct {
 	// Name is the column name in the source table
 	Name string
 
-	// Type is the ClickHouse data type (e.g., "UInt64", "String", "DateTime64(6)")
+	// Type is the data type (e.g., "UInt64", "String", "DateTime64(6)")
 	Type string
 
 	// Codec is the optional compression codec (e.g., "ZSTD(1)", "Delta, ZSTD(3)")

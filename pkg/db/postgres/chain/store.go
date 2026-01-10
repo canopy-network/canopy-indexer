@@ -13,7 +13,7 @@ var ErrNotImplemented = errors.New("method not implemented for Postgres chain st
 
 // NOTE: Postgres chain store provides equivalent functionality to chain.Store but does not
 // formally implement the interface due to GetConnection() returning *pgxpool.Pool instead of
-// driver.Conn (ClickHouse-specific type). All other methods match the chain.Store interface.
+// driver.Conn. All other methods match the chain.Store interface.
 //
 // Method coverage:
 // - ✅ All Insert*Staging methods (wire to direct inserts, no staging needed)

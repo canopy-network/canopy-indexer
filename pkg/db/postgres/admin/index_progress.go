@@ -8,7 +8,7 @@ import (
 )
 
 // initIndexProgress creates the index_progress table
-// This table tracks indexing progress per height per chain (similar to ClickHouse)
+// This table tracks indexing progress per height per chain
 func (db *DB) initIndexProgress(ctx context.Context) error {
 	query := `
 		CREATE TABLE IF NOT EXISTS index_progress (
@@ -30,7 +30,7 @@ func (db *DB) initIndexProgress(ctx context.Context) error {
 }
 
 // RecordIndexed records that a height was successfully indexed
-// Inserts a record for each height indexed (similar to ClickHouse)
+// Inserts a record for each height indexed
 func (db *DB) RecordIndexed(ctx context.Context, chainID uint64, height uint64, indexingTimeMs float64, indexingDetail string) error {
 	query := `
 		INSERT INTO index_progress (chain_id, height, indexed_at, indexing_time, indexing_time_ms, indexing_detail)
