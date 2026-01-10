@@ -11,10 +11,10 @@ func (db *DB) initPools(ctx context.Context) error {
 		CREATE TABLE IF NOT EXISTS pools (
 			pool_id INTEGER NOT NULL,                      -- UInt32 -> INTEGER
 			height BIGINT NOT NULL,
-			chain_id SMALLINT NOT NULL,                    -- UInt16 -> SMALLINT (renamed from pool_chain_id)
+			chain_id INTEGER NOT NULL,                    -- UInt16 -> INTEGER (renamed from pool_chain_id)
 			amount BIGINT NOT NULL DEFAULT 0,
 			total_points BIGINT NOT NULL DEFAULT 0,
-			lp_count SMALLINT NOT NULL DEFAULT 0,          -- UInt16 -> SMALLINT
+			lp_count INTEGER NOT NULL DEFAULT 0,          -- UInt16 -> INTEGER
 			height_time TIMESTAMP WITH TIME ZONE NOT NULL,
 			liquidity_pool_id INTEGER NOT NULL DEFAULT 0,  -- UInt32 -> INTEGER
 			holding_pool_id INTEGER NOT NULL DEFAULT 0,    -- UInt32 -> INTEGER
@@ -22,7 +22,7 @@ func (db *DB) initPools(ctx context.Context) error {
 			reward_pool_id INTEGER NOT NULL DEFAULT 0,     -- UInt32 -> INTEGER
 			amount_delta BIGINT NOT NULL DEFAULT 0,        -- Int64 -> BIGINT
 			total_points_delta BIGINT NOT NULL DEFAULT 0,  -- Int64 -> BIGINT
-			lp_count_delta SMALLINT NOT NULL DEFAULT 0,    -- Int16 -> SMALLINT
+			lp_count_delta INTEGER NOT NULL DEFAULT 0,    -- Int16 -> INTEGER
 			PRIMARY KEY (pool_id, height)
 		);
 
@@ -42,7 +42,7 @@ func (db *DB) initPoolPointsByHolder(ctx context.Context) error {
 			pool_id INTEGER NOT NULL,                      -- UInt32 -> INTEGER
 			height BIGINT NOT NULL,
 			height_time TIMESTAMP WITH TIME ZONE NOT NULL,
-			committee SMALLINT NOT NULL,                   -- UInt16 -> SMALLINT
+			committee INTEGER NOT NULL,                   -- UInt16 -> INTEGER
 			points BIGINT NOT NULL DEFAULT 0,
 			liquidity_pool_points BIGINT NOT NULL DEFAULT 0,
 			liquidity_pool_id INTEGER NOT NULL DEFAULT 0,  -- UInt32 -> INTEGER

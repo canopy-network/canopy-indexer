@@ -19,8 +19,10 @@ import (
 // ConvertValidatorsWithChangeDetection compares validators at height H against H-1
 // and returns only changed validators plus their committee assignments.
 // This implements the snapshot-on-change pattern to minimize database writes.
+// Event correlation detects state transitions even when RPC fields haven't updated yet.
 func ConvertValidatorsWithChangeDetection(
 	current, previous []*fsm.Validator,
+	events []*lib.Event,
 	height uint64,
 	blockTime time.Time,
 ) ([]*indexermodels.Validator, []*indexermodels.CommitteeValidator) {
@@ -29,6 +31,9 @@ func ConvertValidatorsWithChangeDetection(
 	for _, v := range previous {
 		prevMap[transform.BytesToHex(v.Address)] = v
 	}
+
+	// Parse lifecycle events for event correlation
+	pauseEvents, beginUnstakingEvents, slashEvents, rewardEvents := parseValidatorLifecycleEvents(events)
 
 	var validators []*indexermodels.Validator
 	var committeeValidators []*indexermodels.CommitteeValidator
@@ -39,11 +44,36 @@ func ConvertValidatorsWithChangeDetection(
 
 		// Check if changed
 		changed := false
-		if prev == nil {
-			// New validator
+		hasEvent := false
+
+		// PHASE 1: Check for lifecycle events (state transitions)
+		// Events indicate state changes even if RPC fields haven't updated yet
+		if pauseEvents[addrHex] {
 			changed = true
-		} else {
-			// Compare fields
+			hasEvent = true
+		}
+		if beginUnstakingEvents[addrHex] {
+			changed = true
+			hasEvent = true
+		}
+		if slashEvents[addrHex] {
+			changed = true
+			hasEvent = true
+		}
+		if rewardEvents[addrHex] {
+			changed = true
+			hasEvent = true
+		}
+
+		// PHASE 2: Check for new validator
+		if prev == nil {
+			changed = true
+		}
+
+		// PHASE 3: Compare RPC fields (only if no event occurred)
+		// If an event occurred, we already marked changed=true above
+		if !hasEvent && prev != nil {
+			// Compare all fields that affect validator state
 			if curr.StakedAmount != prev.StakedAmount ||
 				transform.BytesToHex(curr.PublicKey) != transform.BytesToHex(prev.PublicKey) ||
 				curr.NetAddress != prev.NetAddress ||
@@ -115,6 +145,47 @@ func equalCommittees(a, b []uint64) bool {
 		}
 	}
 	return true
+}
+
+// parseValidatorLifecycleEvents extracts validator lifecycle events and maps them by address.
+// Returns maps for O(1) lookup during change detection.
+func parseValidatorLifecycleEvents(events []*lib.Event) (
+	pauseEvents, beginUnstakingEvents, slashEvents, rewardEvents map[string]bool,
+) {
+	pauseEvents = make(map[string]bool)
+	beginUnstakingEvents = make(map[string]bool)
+	slashEvents = make(map[string]bool)
+	rewardEvents = make(map[string]bool)
+
+	for _, e := range events {
+		// Skip non-validator events
+		if e.EventType != string(lib.EventTypeAutoPause) &&
+			e.EventType != string(lib.EventTypeAutoBeginUnstaking) &&
+			e.EventType != string(lib.EventTypeSlash) &&
+			e.EventType != string(lib.EventTypeReward) {
+			continue
+		}
+
+		// Extract validator address from event
+		if len(e.Address) == 0 {
+			continue // Skip events without address
+		}
+		addrHex := transform.BytesToHex(e.Address)
+
+		// Map event to address for O(1) lookup
+		switch e.EventType {
+		case string(lib.EventTypeAutoPause):
+			pauseEvents[addrHex] = true
+		case string(lib.EventTypeAutoBeginUnstaking):
+			beginUnstakingEvents[addrHex] = true
+		case string(lib.EventTypeSlash):
+			slashEvents[addrHex] = true
+		case string(lib.EventTypeReward):
+			rewardEvents[addrHex] = true
+		}
+	}
+
+	return pauseEvents, beginUnstakingEvents, slashEvents, rewardEvents
 }
 
 // =============================================================================
@@ -828,19 +899,49 @@ func convertAccounts(accounts []*fsm.Account, height uint64, blockTime time.Time
 	return result
 }
 
-// convertPools converts []*fsm.Pool to []*indexermodels.Pool
-func convertPools(pools []*fsm.Pool, height uint64, blockTime time.Time) []*indexermodels.Pool {
-	result := make([]*indexermodels.Pool, len(pools))
-	for i, pool := range pools {
+// convertPools converts []*fsm.Pool to []*indexermodels.Pool with delta calculations
+func convertPools(current []*fsm.Pool, previous []*fsm.Pool, height uint64, blockTime time.Time) []*indexermodels.Pool {
+	// Build previous pools map for O(1) delta calculation
+	prevMap := make(map[uint64]*fsm.Pool, len(previous))
+	for _, p := range previous {
+		prevMap[p.Id] = p
+	}
+
+	result := make([]*indexermodels.Pool, len(current))
+	for i, pool := range current {
 		result[i] = &indexermodels.Pool{
 			PoolID:      uint32(pool.Id),
 			Height:      height,
 			HeightTime:  blockTime,
 			Amount:      pool.Amount,
 			TotalPoints: pool.TotalPoolPoints,
-			// Add other fields
 		}
+
+		// Calculate H-1 deltas by comparing with previous pool state
+		if prevPool, exists := prevMap[pool.Id]; exists {
+			// Pool existed at H-1, calculate deltas
+			result[i].AmountDelta = int64(pool.Amount) - int64(prevPool.Amount)
+			result[i].TotalPointsDelta = int64(pool.TotalPoolPoints) - int64(prevPool.TotalPoolPoints)
+
+			// Calculate LP count delta (need to count Points array)
+			currentLPCount := uint16(len(pool.Points))
+			prevLPCount := uint16(len(prevPool.Points))
+			result[i].LPCountDelta = int16(currentLPCount) - int16(prevLPCount)
+			result[i].LPCount = currentLPCount
+		} else {
+			// New pool at height H, deltas are zero
+			result[i].AmountDelta = 0
+			result[i].TotalPointsDelta = 0
+			result[i].LPCountDelta = 0
+			result[i].LPCount = uint16(len(pool.Points))
+		}
+
+		// Calculate derived pool IDs (committee-based addressing)
+		chainID := transform.ExtractChainIDFromPoolID(pool.Id)
+		result[i].ChainID = uint16(chainID)
+		result[i].LiquidityPoolID = uint32(transform.LiquidityPoolAddend + chainID)
 	}
+
 	return result
 }
 

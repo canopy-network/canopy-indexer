@@ -692,7 +692,7 @@ func (idx *Indexer) convertToBlockData(data *blob.BlockData) *BlockData {
 	result.Transactions = convertTransactions(data.Transactions, data.ChainID, data.Height, data.BlockTime)
 	result.Events = convertEvents(data.Events, data.ChainID, data.Height, data.BlockTime)
 	result.Accounts = convertAccounts(data.Accounts, data.Height, data.BlockTime)
-	result.Pools = convertPools(data.PoolsCurrent, data.Height, data.BlockTime)
+	result.Pools = convertPools(data.PoolsCurrent, data.PoolsPrevious, data.Height, data.BlockTime)
 	result.Orders = convertOrders(data.Orders, data.Height, data.BlockTime)
 	result.DexPrices = convertDexPrices(data.DexPrices, data.Height, data.BlockTime)
 	result.Params = convertParams(data.Params, data.Height, data.BlockTime)
@@ -702,6 +702,7 @@ func (idx *Indexer) convertToBlockData(data *blob.BlockData) *BlockData {
 	// Change detection conversions
 	result.Validators, result.CommitteeValidators = ConvertValidatorsWithChangeDetection(
 		data.ValidatorsCurrent, data.ValidatorsPrevious,
+		data.Events,
 		data.Height, data.BlockTime,
 	)
 	result.ValidatorNonSigningInfo = ConvertNonSignersWithChangeDetection(

@@ -23,9 +23,9 @@ services:
     container_name: canopy-node-2
     image: alpine:3.19
     ports:
-      - 40000:40000 # Wallet
-      - 40001:40001 # Explorer
-      - 40002:40002 # RPC
+      - 40000:50000 # Wallet
+      - 40001:50001 # Explorer
+      - 40002:50002 # RPC
       - 40003:40003 # Admin RPC
       - 6062:6060   # Debug
     networks:
