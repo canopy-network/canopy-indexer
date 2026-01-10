@@ -17,7 +17,7 @@ import (
 	"github.com/canopy-network/canopy-indexer/pkg/blob"
 	"github.com/canopy-network/canopy-indexer/pkg/rpc"
 	"github.com/canopy-network/canopy/fsm"
-	"github.com/canopy-network/canopyx/pkg/db/postgres"
+	"github.com/canopy-network/canopy-indexer/pkg/db/postgres"
 	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"

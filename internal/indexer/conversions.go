@@ -9,7 +9,7 @@ import (
 	"github.com/canopy-network/canopy-indexer/pkg/transform"
 	"github.com/canopy-network/canopy/fsm"
 	"github.com/canopy-network/canopy/lib"
-	indexermodels "github.com/canopy-network/canopyx/pkg/db/models/indexer"
+	indexermodels "github.com/canopy-network/canopy-indexer/pkg/db/models/indexer"
 )
 
 // =============================================================================

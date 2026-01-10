@@ -14,7 +14,7 @@ import (
 	"github.com/canopy-network/canopy-indexer/internal/config"
 	"github.com/canopy-network/canopy-indexer/internal/indexer"
 	"github.com/canopy-network/canopy-indexer/pkg/rpc"
-	"github.com/canopy-network/canopyx/pkg/db/postgres"
+	"github.com/canopy-network/canopy-indexer/pkg/db/postgres"
 	"go.uber.org/zap"
 )
 

@@ -48,16 +48,22 @@ type Config struct {
 
 	// Backfill
 	BackfillCheckInterval time.Duration // Periodic gap check interval (0 = disabled)
+
+	// HTTP API
+	HTTPEnabled       bool
+	HTTPAddr          string
+	AdminToken        string
+	AdminPostgresURL  string
 }
 
 // MockChains returns the hardcoded list of 100 mock chain configurations.
-// Chain IDs 1000-1099 on ports 60000-60099.
+// Chain IDs 1000-1099 on ports 61000-61099.
 func MockChains() []ChainConfig {
 	chains := make([]ChainConfig, 100)
 	for i := 0; i < 100; i++ {
 		chains[i] = ChainConfig{
 			ChainID: uint64(1000 + i),
-			RPCURL:  fmt.Sprintf("http://rpc-mock:%d", 60000+i),
+			RPCURL:  fmt.Sprintf("http://rpc-mock:%d", 61000+i),
 		}
 	}
 	return chains
@@ -166,6 +172,26 @@ func Load() (*Config, error) {
 	}
 	if cfg.WSBlobChainID == 0 && cfg.WSBlobEnabled {
 		cfg.WSBlobChainID = 1 // Default chain ID
+	}
+
+	// HTTP API Configuration
+	if v := os.Getenv("HTTP_ENABLED"); v != "" {
+		cfg.HTTPEnabled = v == "true" || v == "1"
+	}
+
+	cfg.HTTPAddr = os.Getenv("HTTP_ADDR")
+	if cfg.HTTPAddr == "" {
+		cfg.HTTPAddr = ":8080" // Default port
+	}
+
+	cfg.AdminToken = os.Getenv("ADMIN_TOKEN")
+	if cfg.AdminToken == "" {
+		cfg.AdminToken = "devtoken" // Default token for development
+	}
+
+	cfg.AdminPostgresURL = os.Getenv("ADMIN_POSTGRES_URL")
+	if cfg.AdminPostgresURL == "" {
+		cfg.AdminPostgresURL = cfg.PostgresURL // Fallback to main DB
 	}
 
 	return cfg, nil

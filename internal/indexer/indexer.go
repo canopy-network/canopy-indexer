@@ -8,10 +8,10 @@ import (
 
 	"github.com/canopy-network/canopy-indexer/pkg/blob"
 	"github.com/canopy-network/canopy-indexer/pkg/rpc"
-	indexermodels "github.com/canopy-network/canopyx/pkg/db/models/indexer"
-	"github.com/canopy-network/canopyx/pkg/db/postgres"
-	"github.com/canopy-network/canopyx/pkg/db/postgres/admin"
-	"github.com/canopy-network/canopyx/pkg/db/postgres/chain"
+	indexermodels "github.com/canopy-network/canopy-indexer/pkg/db/models/indexer"
+	"github.com/canopy-network/canopy-indexer/pkg/db/postgres"
+	"github.com/canopy-network/canopy-indexer/pkg/db/postgres/admin"
+	"github.com/canopy-network/canopy-indexer/pkg/db/postgres/chain"
 	"github.com/jackc/pgx/v5"
 	"go.uber.org/zap"
 )

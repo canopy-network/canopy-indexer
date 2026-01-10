@@ -142,7 +142,7 @@ func (l *BlobListener) buildURL() (string, error) {
 
 	// Canopy subscription path for IndexerBlob
 	basePath := parsed.Path
-	fullPath := basePath + "/v1/subscribe-indexer-blobs"
+	fullPath := basePath + "/v1/subscribe-indexer-blob"
 
 	wsURL := url.URL{
 		Scheme:   wsScheme,
@@ -168,9 +168,9 @@ func (l *BlobListener) listen(ctx context.Context) error {
 			return fmt.Errorf("read message: %w", err)
 		}
 
-		// Unmarshal protobuf IndexerBlob
-		blob := new(fsm.IndexerBlob)
-		if err := lib.Unmarshal(data, blob); err != nil {
+		// Unmarshal protobuf IndexerBlobs
+		blobs := new(fsm.IndexerBlobs)
+		if err := lib.Unmarshal(data, blobs); err != nil {
 			slog.Warn("blob websocket unmarshal failed",
 				"err", err,
 				"data_len", len(data),
@@ -185,13 +185,25 @@ func (l *BlobListener) listen(ctx context.Context) error {
 		msgNum := l.messageCount
 		l.mu.Unlock()
 
-		// Extract height from block for logging
+		// Extract height from current blob for logging
 		var height uint64
-		if len(blob.Block) > 0 {
+		if blobs.Current != nil && len(blobs.Current.Block) > 0 {
 			var block lib.BlockResult
-			if err := lib.Unmarshal(blob.Block, &block); err == nil && block.BlockHeader != nil {
+			if err := lib.Unmarshal(blobs.Current.Block, &block); err == nil && block.BlockHeader != nil {
 				height = block.BlockHeader.Height
 			}
+		}
+
+		// Count entities from current blob
+		totalAccounts := 0
+		totalValidators := 0
+		totalPools := 0
+		totalDexBatches := 0
+		if blobs.Current != nil {
+			totalAccounts = len(blobs.Current.Accounts)
+			totalValidators = len(blobs.Current.Validators)
+			totalPools = len(blobs.Current.Pools)
+			totalDexBatches = len(blobs.Current.DexBatches)
 		}
 
 		slog.Info("blob received",
@@ -199,19 +211,21 @@ func (l *BlobListener) listen(ctx context.Context) error {
 			"height", height,
 			"msg_num", msgNum,
 			"size_bytes", len(data),
-			"accounts", len(blob.Accounts),
-			"validators", len(blob.Validators),
-			"pools", len(blob.Pools),
-			"dex_batches", len(blob.DexBatches),
+			"accounts", totalAccounts,
+			"validators", totalValidators,
+			"pools", totalPools,
+			"dex_batches", totalDexBatches,
 		)
 
-		// Call the handler
-		if err := l.onBlob(blob); err != nil {
-			slog.Error("blob handler failed",
-				"height", height,
-				"err", err,
-			)
-			// Continue processing - don't disconnect on handler errors
+		// Call the handler with current blob
+		if blobs.Current != nil {
+			if err := l.onBlob(blobs.Current); err != nil {
+				slog.Error("blob handler failed",
+					"height", height,
+					"err", err,
+				)
+				// Continue processing - don't disconnect on handler errors
+			}
 		}
 	}
 }

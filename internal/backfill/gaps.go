@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/canopy-network/canopyx/pkg/db/postgres"
+	"github.com/canopy-network/canopy-indexer/pkg/db/postgres"
 )
 
 // GapStats contains statistics about detected gaps.

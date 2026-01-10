@@ -3,7 +3,7 @@ package indexer
 import (
 	"time"
 
-	indexermodels "github.com/canopy-network/canopyx/pkg/db/models/indexer"
+	indexermodels "github.com/canopy-network/canopy-indexer/pkg/db/models/indexer"
 )
 
 // CanopyxBlockData holds all converted data ready for canopyx database insertion.
