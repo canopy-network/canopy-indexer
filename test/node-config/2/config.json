@@ -1,10 +1,10 @@
 {
   "logLevel": "info",
-  "chainId": 2,
+  "chainId": 1,
   "sleepUntil": 0,
   "rootChain": [
     {
-      "chainId": 2,
+      "chainId": 1,
       "url": "http://localhost:50002"
     }
   ],
@@ -34,7 +34,7 @@
   "dbName": "canopy",
   "indexByAccount": true,
   "inMemory": false,
-  "lssCompactionInterval": 572,
+  "lssCompactionInterval": 596,
   "networkID": 1,
   "listenAddress": "0.0.0.0:9001",
   "externalAddress": "",

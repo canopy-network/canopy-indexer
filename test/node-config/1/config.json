@@ -34,7 +34,7 @@
   "dbName": "canopy",
   "indexByAccount": true,
   "inMemory": false,
-  "lssCompactionInterval": 529,
+  "lssCompactionInterval": 507,
   "networkID": 1,
   "listenAddress": "0.0.0.0:9001",
   "externalAddress": "",
