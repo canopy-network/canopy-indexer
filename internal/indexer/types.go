@@ -6,9 +6,9 @@ import (
 	indexermodels "github.com/canopy-network/canopy-indexer/pkg/db/models/indexer"
 )
 
-// CanopyxBlockData holds all converted data ready for canopyx database insertion.
+// BlockData holds all converted data ready for database insertion.
 // This structure contains all the fields needed for transactional writes.
-type CanopyxBlockData struct {
+type BlockData struct {
 	// Metadata
 	ChainID   uint64
 	Height    uint64

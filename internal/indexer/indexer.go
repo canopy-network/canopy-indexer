@@ -153,16 +153,16 @@ func (idx *Indexer) IndexBlockWithData(ctx context.Context, data *blob.BlockData
 		}
 	}
 
-	// Convert BlockData to canopyx models (includes change detection)
-	canopyxData := idx.convertToCanopyxModels(data)
+	// Convert BlockData to internal models (includes change detection)
+	blockData := idx.convertToBlockData(data)
 
-	// Transactional canopyx writes
-	if err := idx.writeWithCanopyx(ctx, db, canopyxData); err != nil {
+	// Transactional database writes
+	if err := idx.writeBlockData(ctx, db, blockData); err != nil {
 		return fmt.Errorf("write data: %w", err)
 	}
 
 	// Build block summary (computed from the data we just wrote)
-	if err := idx.buildBlockSummary(ctx, db, canopyxData); err != nil {
+	if err := idx.buildBlockSummary(ctx, db, blockData); err != nil {
 		return fmt.Errorf("build block summary: %w", err)
 	}
 
@@ -441,8 +441,8 @@ func (idx *Indexer) Close() error {
 	return errors.Join(errs...)
 }
 
-// writeWithCanopyx implements transactional writes using canopyx database operations
-func (idx *Indexer) writeWithCanopyx(ctx context.Context, db *chain.DB, data *CanopyxBlockData) error {
+// writeBlockData implements transactional writes using database operations
+func (idx *Indexer) writeBlockData(ctx context.Context, db *chain.DB, data *BlockData) error {
 	return db.BeginFunc(ctx, func(tx pgx.Tx) error {
 		// Embed transaction in context for all insert methods
 		txCtx := db.WithTx(ctx, tx)
@@ -515,7 +515,7 @@ func (idx *Indexer) writeWithCanopyx(ctx context.Context, db *chain.DB, data *Ca
 }
 
 // buildBlockSummary computes and inserts the block summary from converted data
-func (idx *Indexer) buildBlockSummary(ctx context.Context, db *chain.DB, data *CanopyxBlockData) error {
+func (idx *Indexer) buildBlockSummary(ctx context.Context, db *chain.DB, data *BlockData) error {
 	summary := &indexermodels.BlockSummary{
 		Height:            data.Height,
 		HeightTime:        data.BlockTime,
@@ -679,9 +679,9 @@ func (idx *Indexer) buildBlockSummary(ctx context.Context, db *chain.DB, data *C
 	return db.InsertBlockSummaries(ctx, summary)
 }
 
-// convertToCanopyxModels applies change detection and converts to canopyx types
-func (idx *Indexer) convertToCanopyxModels(data *blob.BlockData) *CanopyxBlockData {
-	result := &CanopyxBlockData{
+// convertToBlockData applies change detection and converts to internal types
+func (idx *Indexer) convertToBlockData(data *blob.BlockData) *BlockData {
+	result := &BlockData{
 		ChainID:   data.ChainID,
 		Height:    data.Height,
 		BlockTime: data.BlockTime,
