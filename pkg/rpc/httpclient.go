@@ -290,10 +290,15 @@ func (c *HTTPClient) ChainHead(ctx context.Context) (uint64, error) {
 	var resp struct {
 		Height uint64 `json:"height"`
 	}
-	if err := c.doJSON(ctx, http.MethodGet, headPath, nil, &resp); err != nil {
+	if err := c.doJSON(ctx, http.MethodPost, headPath, nil, &resp); err != nil {
 		return 0, err
 	}
 	return resp.Height, nil
+}
+
+// Endpoints returns the configured RPC endpoints.
+func (c *HTTPClient) Endpoints() []string {
+	return c.endpoints
 }
 
 // BlockByHeight fetches a block at the given height.
