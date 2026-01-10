@@ -118,7 +118,7 @@ func (db *DB) insertTransactions(ctx context.Context, exec postgres.Executor, tx
 func (db *DB) insertBlockSummary(ctx context.Context, exec postgres.Executor, summary *indexermodels.BlockSummary) error {
 	query := `
 		INSERT INTO block_summaries (
-			height, height_time, total_transactions,
+			chain_id, height, height_time, total_transactions,
 			num_txs, num_txs_send, num_txs_stake, num_txs_unstake, num_txs_edit_stake,
 			num_txs_start_poll, num_txs_vote_poll, num_txs_lock_order, num_txs_close_order,
 			num_txs_unknown, num_txs_pause, num_txs_unpause, num_txs_change_parameter,
@@ -151,9 +151,9 @@ func (db *DB) insertBlockSummary(ctx context.Context, exec postgres.Executor, su
 			$21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38,
 			$39, $40, $41, $42, $43, $44, $45, $46, $47, $48, $49, $50, $51, $52, $53, $54, $55, $56,
 			$57, $58, $59, $60, $61, $62, $63, $64, $65, $66, $67, $68, $69, $70, $71, $72, $73, $74,
-			$75, $76, $77, $78, $79, $80, $81, $82, $83, $84, $85, $86, $87, $88, $89, $90, $91, $92, $93
+			$75, $76, $77, $78, $79, $80, $81
 		)
-		ON CONFLICT (height) DO UPDATE SET
+		ON CONFLICT (chain_id, height) DO UPDATE SET
 			height_time = EXCLUDED.height_time,
 			total_transactions = EXCLUDED.total_transactions,
 			num_txs = EXCLUDED.num_txs,
@@ -236,7 +236,7 @@ func (db *DB) insertBlockSummary(ctx context.Context, exec postgres.Executor, su
 	`
 
 	_, err := exec.Exec(ctx, query,
-		summary.Height, summary.HeightTime, summary.TotalTransactions,
+		db.ChainID, summary.Height, summary.HeightTime, summary.TotalTransactions,
 		summary.NumTxs, summary.NumTxsSend, summary.NumTxsStake, summary.NumTxsUnstake, summary.NumTxsEditStake,
 		summary.NumTxsStartPoll, summary.NumTxsVotePoll, summary.NumTxsLockOrder, summary.NumTxsCloseOrder,
 		summary.NumTxsUnknown, summary.NumTxsPause, summary.NumTxsUnpause, summary.NumTxsChangeParameter,
