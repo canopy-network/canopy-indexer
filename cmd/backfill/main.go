@@ -118,8 +118,8 @@ func main() {
 	}
 	defer client.Close()
 
-	// Create indexer
-	idx, err := indexer.New(ctx, logger, cfg, &client)
+	// Create indexer (no publisher needed for backfill)
+	idx, err := indexer.New(ctx, logger, cfg, &client, nil)
 	if err != nil {
 		slog.Error("failed to create indexer", "err", err)
 		os.Exit(1)

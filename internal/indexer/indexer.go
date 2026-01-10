@@ -10,6 +10,7 @@ import (
 
 	"github.com/canopy-network/canopy-indexer/internal/config"
 	"github.com/canopy-network/canopy-indexer/internal/listener"
+	"github.com/canopy-network/canopy-indexer/internal/publisher"
 	"github.com/canopy-network/canopy-indexer/pkg/blob"
 	adminmodels "github.com/canopy-network/canopy-indexer/pkg/db/models/admin"
 	indexermodels "github.com/canopy-network/canopy-indexer/pkg/db/models/indexer"
@@ -34,6 +35,7 @@ type Indexer struct {
 	logger         *zap.Logger
 	cfg            *config.Config
 	postgresClient *postgres.Client
+	publisher      *publisher.Publisher // For Redis height publishing
 
 	// Blob listener management for auto-subscription
 	blobListeners       map[uint64]*listener.BlobListener // Per-chain blob listeners
@@ -41,7 +43,7 @@ type Indexer struct {
 }
 
 // New creates a new Indexer with initialized databases.
-func New(ctx context.Context, logger *zap.Logger, cfg *config.Config, postgresClient *postgres.Client) (*Indexer, error) {
+func New(ctx context.Context, logger *zap.Logger, cfg *config.Config, postgresClient *postgres.Client, publisher *publisher.Publisher) (*Indexer, error) {
 	// Initialize admin DB - use "admin" database to share chains with API
 	adminDB, err := admin.NewWithPoolConfig(ctx, logger, "admin",
 		*postgres.GetPoolConfigForComponent("indexer_admin"))
@@ -56,6 +58,7 @@ func New(ctx context.Context, logger *zap.Logger, cfg *config.Config, postgresCl
 		logger:              logger,
 		cfg:                 cfg,
 		postgresClient:      postgresClient,
+		publisher:           publisher,
 		blobListeners:       make(map[uint64]*listener.BlobListener),
 		blobListenerCancels: make(map[uint64]context.CancelFunc),
 	}, nil
@@ -139,6 +142,17 @@ func (idx *Indexer) IndexBlockWithData(ctx context.Context, data *blob.BlockData
 	// Record index progress
 	if err := idx.updateProgress(ctx, data.ChainID, data.Height, time.Since(start)); err != nil {
 		slog.Warn("failed to record index progress", "err", err)
+	}
+
+	// Publish height to Redis after successful indexing (if publisher is configured)
+	if idx.publisher != nil {
+		if err := idx.publisher.PublishBlock(ctx, data.ChainID, data.Height); err != nil {
+			idx.logger.Error("failed to publish block height",
+				zap.Uint64("chain_id", data.ChainID),
+				zap.Uint64("height", data.Height),
+				zap.Error(err))
+			// Don't fail indexing due to publish error
+		}
 	}
 
 	slog.Debug("indexed block (from blob)",
@@ -500,7 +514,44 @@ func (idx *Indexer) buildBlockSummary(ctx context.Context, db *chain.DB, data *C
 			summary.NumTxsSend++
 		case "stake":
 			summary.NumTxsStake++
-			// ... other transaction types
+		case "unstake":
+			summary.NumTxsUnstake++
+		case "edit_stake":
+			summary.NumTxsEditStake++
+		case "start_poll":
+			summary.NumTxsStartPoll++
+		case "vote_poll":
+			summary.NumTxsVotePoll++
+		case "lock_order":
+			summary.NumTxsLockOrder++
+		case "close_order":
+			summary.NumTxsCloseOrder++
+		case "unknown":
+			summary.NumTxsUnknown++
+		case "pause":
+			summary.NumTxsPause++
+		case "unpause":
+			summary.NumTxsUnpause++
+		case "change_parameter":
+			summary.NumTxsChangeParameter++
+		case "dao_transfer":
+			summary.NumTxsDaoTransfer++
+		case "certificate_results":
+			summary.NumTxsCertificateResults++
+		case "subsidy":
+			summary.NumTxsSubsidy++
+		case "create_order":
+			summary.NumTxsCreateOrder++
+		case "edit_order":
+			summary.NumTxsEditOrder++
+		case "delete_order":
+			summary.NumTxsDeleteOrder++
+		case "dex_limit_order":
+			summary.NumTxsDexLimitOrder++
+		case "dex_liquidity_deposit":
+			summary.NumTxsDexLiquidityDeposit++
+		case "dex_liquidity_withdraw":
+			summary.NumTxsDexLiquidityWithdraw++
 		}
 	}
 

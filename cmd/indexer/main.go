@@ -13,7 +13,6 @@ import (
 	"github.com/canopy-network/canopy-indexer/internal/indexer"
 	"github.com/canopy-network/canopy-indexer/internal/listener"
 	"github.com/canopy-network/canopy-indexer/internal/publisher"
-	"github.com/canopy-network/canopy-indexer/internal/worker"
 	"github.com/canopy-network/canopy-indexer/pkg/blob"
 	"github.com/canopy-network/canopy-indexer/pkg/db/postgres"
 	"github.com/canopy-network/canopy-indexer/pkg/db/postgres/admin"
@@ -86,26 +85,12 @@ func main() {
 	defer pub.Close()
 
 	// Create indexer
-	idx, err := indexer.New(ctx, logger, cfg, &client)
+	idx, err := indexer.New(ctx, logger, cfg, &client, pub)
 	if err != nil {
 		slog.Error("failed to create indexer", "err", err)
 		os.Exit(1)
 	}
 	defer idx.Close()
-
-	// Create worker
-	wrk, err := worker.New(worker.Config{
-		RedisClient:   redisClient,
-		Indexer:       idx,
-		Topic:         cfg.BlocksTopic,
-		ConsumerGroup: cfg.ConsumerGroup,
-		Concurrency:   cfg.WorkerConcurrency,
-	})
-	if err != nil {
-		slog.Error("failed to create worker", "err", err)
-		os.Exit(1)
-	}
-	defer wrk.Close()
 
 	// Run all components
 	g, ctx := errgroup.WithContext(ctx)
@@ -163,11 +148,6 @@ func main() {
 		// Legacy WebSocket mode - only receives height, requires HTTP fetch
 		slog.Warn("WebSocket mode requires NODE_WS_URL environment variable to be set")
 	}
-
-	g.Go(func() error {
-		slog.Info("starting worker")
-		return wrk.Run(ctx)
-	})
 
 	g.Go(func() error {
 		return runChainRediscovery(ctx, idx, cfg.ChainRediscoveryInterval)
