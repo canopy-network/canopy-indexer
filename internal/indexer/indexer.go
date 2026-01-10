@@ -36,8 +36,8 @@ type Indexer struct {
 
 // New creates a new Indexer with initialized databases.
 func New(ctx context.Context, logger *zap.Logger, cfg *config.Config, postgresClient *postgres.Client) (*Indexer, error) {
-	// Initialize admin DB
-	adminDB, err := admin.NewWithPoolConfig(ctx, logger, "indexer_admin",
+	// Initialize admin DB - use "admin" database to share chains with API
+	adminDB, err := admin.NewWithPoolConfig(ctx, logger, "admin",
 		*postgres.GetPoolConfigForComponent("indexer_admin"))
 	if err != nil {
 		return nil, fmt.Errorf("create admin db: %w", err)
@@ -218,6 +218,20 @@ func (idx *Indexer) Rediscover(ctx context.Context) error {
 		return fmt.Errorf("list chains: %w", err)
 	}
 
+	// Log all chains found
+	idx.logger.Info("chain rediscovery started",
+		zap.Int("total_chains_in_db", len(adminChains)),
+	)
+	for _, c := range adminChains {
+		idx.logger.Debug("found chain in admin DB",
+			zap.Uint64("chain_id", c.ChainID),
+			zap.String("chain_name", c.ChainName),
+			zap.Strings("rpc_endpoints", c.RPCEndpoints),
+			zap.Uint8("paused", c.Paused),
+			zap.Uint8("deleted", c.Deleted),
+		)
+	}
+
 	// Build set of active chain IDs
 	activeSet := make(map[uint64]adminmodels.Chain)
 	for _, c := range adminChains {
@@ -225,6 +239,10 @@ func (idx *Indexer) Rediscover(ctx context.Context) error {
 			activeSet[c.ChainID] = c
 		}
 	}
+
+	idx.logger.Info("active chains after filtering",
+		zap.Int("active_count", len(activeSet)),
+	)
 
 	idx.mu.Lock()
 	defer idx.mu.Unlock()
