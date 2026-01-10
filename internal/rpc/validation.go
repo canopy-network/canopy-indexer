@@ -27,8 +27,9 @@ func FetchChainID(ctx context.Context, rpcURL string) (uint64, error) {
 	}
 	client := rpc.NewHTTPWithOpts(opts)
 
-	// Query genesis block (height 0) to get chain ID from network_id
-	block, err := client.BlockByHeight(ctx, 0)
+	// Query genesis block (height 1) to get chain ID from network_id
+	// Note: height 0 returns latest block in Canopy RPC
+	block, err := client.BlockByHeight(ctx, 1)
 	if err != nil {
 		return 0, fmt.Errorf("failed to fetch genesis block from %s: %w", rpcURL, err)
 	}

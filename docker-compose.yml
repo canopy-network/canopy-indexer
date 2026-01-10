@@ -61,7 +61,7 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
-      - ./bin/indexer-linux-static:/app/bin/indexer:ro
+      - ./bin/indexer-linux:/app/bin/indexer:ro
     working_dir: /app
     command: ["/app/bin/indexer"]
     depends_on:

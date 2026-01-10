@@ -154,7 +154,7 @@ func Load() (*Config, error) {
 			cfg.ChainRediscoveryInterval = d
 		}
 	} else {
-		cfg.ChainRediscoveryInterval = 30 * time.Second // Default 30 seconds
+		cfg.ChainRediscoveryInterval = 5 * time.Second // Default 5 seconds
 	}
 
 	// Default Canopy node for blob mode (can be overridden by WS_BLOB_URL)

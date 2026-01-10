@@ -124,7 +124,7 @@ func New(ctx context.Context, logger *zap.Logger, dbName string, poolConfig ...*
 }
 
 // CreateDbIfNotExists ensures that the specified database exists by creating it if it does not already exist.
-// Note: This requires connecting to a default database (like 'postgres') first.
+// After ensuring the database exists, it reconnects the pool to the target database.
 func (c *Client) CreateDbIfNotExists(ctx context.Context, dbName string) error {
 	// Check if database exists
 	var exists bool
@@ -144,6 +144,26 @@ func (c *Client) CreateDbIfNotExists(ctx context.Context, dbName string) error {
 			return fmt.Errorf("failed to create database: %w", err)
 		}
 	}
+
+	// Now reconnect to the target database
+	// Get the current connection config and modify it to point to the target database
+	connConfig := c.Pool.Config().ConnConfig.Copy()
+	connConfig.Database = dbName
+
+	// Create new pool config with the target database
+	poolConfig := c.Pool.Config().Copy()
+	poolConfig.ConnConfig = connConfig
+
+	// Close the old pool and create a new one connected to the target database
+	c.Pool.Close()
+
+	newPool, err := pgxpool.NewWithConfig(ctx, poolConfig)
+	if err != nil {
+		return fmt.Errorf("failed to connect to target database %s: %w", dbName, err)
+	}
+
+	c.Pool = newPool
+	c.TargetDatabase = dbName
 
 	return nil
 }
