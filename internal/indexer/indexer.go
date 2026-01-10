@@ -562,9 +562,20 @@ func (idx *Indexer) buildBlockSummary(ctx context.Context, db *chain.DB, data *C
 			summary.NumEventsReward++
 		case "slash":
 			summary.NumEventsSlash++
-		case "dex-swap":
+		case "dex_liquidity_deposit":
+			summary.NumEventsDexLiquidityDeposit++
+		case "dex_liquidity_withdraw":
+			summary.NumEventsDexLiquidityWithdraw++
+		case "dex_swap":
 			summary.NumEventsDexSwap++
-			// ... other event types
+		case "order_book_swap":
+			summary.NumEventsOrderBookSwap++
+		case "automatic_pause":
+			summary.NumEventsAutomaticPause++
+		case "automatic_begin_unstaking":
+			summary.NumEventsAutomaticBeginUnstaking++
+		case "automatic_finish_unstaking":
+			summary.NumEventsAutomaticFinishUnstaking++
 		}
 	}
 
@@ -582,6 +593,50 @@ func (idx *Indexer) buildBlockSummary(ctx context.Context, db *chain.DB, data *C
 			} else {
 				summary.NumDexOrdersFailed++
 			}
+		}
+	}
+
+	// Count DEX deposit states
+	for _, deposit := range data.DexDeposits {
+		switch deposit.State {
+		case "pending":
+			summary.NumDexDepositsPending++
+		case "complete":
+			summary.NumDexDepositsComplete++
+		}
+	}
+
+	// Count DEX withdrawal states
+	for _, withdrawal := range data.DexWithdrawals {
+		switch withdrawal.State {
+		case "pending":
+			summary.NumDexWithdrawalsPending++
+		case "complete":
+			summary.NumDexWithdrawalsComplete++
+		}
+	}
+
+	// Count order states
+	for _, order := range data.Orders {
+		switch order.Status {
+		case "open":
+			summary.NumOrdersOpen++
+		case "complete":
+			summary.NumOrdersFilled++
+		case "canceled":
+			summary.NumOrdersCancelled++
+		}
+	}
+
+	// Count validator states
+	for _, validator := range data.Validators {
+		switch validator.Status {
+		case "active":
+			summary.NumValidatorsActive++
+		case "paused":
+			summary.NumValidatorsPaused++
+		case "unstaking":
+			summary.NumValidatorsUnstaking++
 		}
 	}
 
