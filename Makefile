@@ -65,7 +65,9 @@ psql:
 
 # Reset database (drop and recreate)
 db-reset:
-	PGPASSWORD=canopy-indexer123 psql -h localhost -p 5434 -U canopy-indexer -d canopy-indexer -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"
+	@echo "Resetting all schemas in indexer database..."
+	PGPASSWORD=canopy-indexer123 psql -h localhost -p 5434 -U canopy-indexer -d indexer -c "DROP SCHEMA IF EXISTS admin CASCADE; DROP SCHEMA IF EXISTS crosschain CASCADE;"
+	PGPASSWORD=canopy-indexer123 psql -h localhost -p 5434 -U canopy-indexer -d indexer -tAc "SELECT 'DROP SCHEMA ' || schema_name || ' CASCADE;' FROM information_schema.schemata WHERE schema_name LIKE 'chain_%'" | PGPASSWORD=canopy-indexer123 psql -h localhost -p 5434 -U canopy-indexer -d indexer
 	$(MAKE) migrate
 
 # Start Tilt development environment (port 10370 to avoid conflicts)

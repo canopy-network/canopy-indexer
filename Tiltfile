@@ -13,7 +13,7 @@ DATABASE_URL = "postgres://canopy-indexer:canopy-indexer123@localhost:5434/canop
 PG_HOST = "localhost"
 PG_PORT = "5434"
 PG_USER = "canopy-indexer"
-PG_DB = "canopy-indexer"
+PG_DB = "indexer"
 
 # =============================================================================
 # Helper Functions
@@ -75,38 +75,25 @@ local_resource(
     auto_init=True,
 )
 
-# Database reset - complete clean slate (drops and recreates all databases)
+# Database reset - complete clean slate (drops and recreates indexer database with all schemas)
 local_resource(
     'db-reset',
     cmd='''
-        echo "Dropping and recreating all canopy-indexer databases..."
+        echo "Dropping and recreating indexer database..."
         echo "Stopping all services..."
         docker stop canopy-indexer-indexer 2>/dev/null || true
         docker stop canopy-indexer-backfill 2>/dev/null || true
 
-        echo "Dropping and recreating databases..."
+        echo "Dropping and recreating database..."
         export PGPASSWORD={pgpassword}
 
-        # Drop all canopy-indexer related databases with force
-        DATABASES=("canopy-indexer" "admin")
-        # Add any chain databases that might exist
-        CHAIN_DBS=$(psql -h {pg_host} -p {pg_port} -U {pg_user} -d postgres -tAc "
-            SELECT datname FROM pg_database WHERE datname LIKE 'chain_%'
-        " 2>/dev/null || echo "")
+        # Drop the indexer database (contains all schemas: admin, crosschain, chain_*)
+        echo "Dropping database: {pg_db}"
+        psql -h {pg_host} -p {pg_port} -U {pg_user} -d postgres -c "DROP DATABASE IF EXISTS \\"{pg_db}\\" WITH (FORCE);" 2>/dev/null || true
 
-        for db in $CHAIN_DBS; do
-            DATABASES+=("$db")
-        done
-
-        for db in "${{DATABASES[@]}}"; do
-            echo "Dropping database: $db"
-            psql -h {pg_host} -p {pg_port} -U {pg_user} -d postgres -c "DROP DATABASE IF EXISTS \\"$db\\" WITH (FORCE);" 2>/dev/null || true
-        done
-
-        # Recreate main database
+        # Recreate the indexer database
         echo "Creating database: {pg_db}"
         psql -h {pg_host} -p {pg_port} -U {pg_user} -d postgres -c "CREATE DATABASE \\"{pg_db}\\";"
-
 
         echo "Running migrations..."
         psql -h {pg_host} -p {pg_port} -U {pg_user} -d {pg_db} -f migrations/001_initial.sql
@@ -115,6 +102,7 @@ local_resource(
         docker restart canopy-indexer-indexer 2>/dev/null || true
 
         echo "Database reset complete! Services will restart automatically."
+        echo "Note: Chain schemas will be recreated dynamically when chains are added."
     '''.format(
         pgpassword=PGPASSWORD,
         pg_host=PG_HOST,
@@ -339,7 +327,7 @@ print("   • Backfill: indexes all 100 chains (runs automatically)")
 print("")
 print("🔧 Utility commands (trigger manually):")
 print("   • backfill-run: Restart backfill container")
-print("   • db-reset: DROP and RECREATE all databases (canopy-indexer, admin, chain_*)")
+print("   • db-reset: DROP and RECREATE indexer database (with all schemas: admin, crosschain, chain_*)")
 print("   • add-nodes: Add canopy nodes via script")
 print("   • redis-clear: Clear Redis streams")
 print("   • show-progress: View indexing progress")
