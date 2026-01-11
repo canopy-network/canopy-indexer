@@ -57,14 +57,21 @@ clean:
 
 # Run database migrations (local postgres on 5434)
 migrate:
+	@echo "Ensuring indexer database exists..."
+	PGPASSWORD=canopy-indexer123 psql -h localhost -p 5434 -U canopy-indexer -d postgres -c "CREATE DATABASE indexer;" 2>/dev/null || echo "Database indexer already exists"
+	@echo "Running migrations..."
 	PGPASSWORD=canopy-indexer123 psql -h localhost -p 5434 -U canopy-indexer -d indexer -f migrations/001_initial.sql
 
 # Connect to psql (interactive)
 psql:
+	@echo "Ensuring indexer database exists..."
+	PGPASSWORD=canopy-indexer123 psql -h localhost -p 5434 -U canopy-indexer -d postgres -c "CREATE DATABASE indexer;" 2>/dev/null || echo "Database indexer already exists"
 	PGPASSWORD=canopy-indexer123 psql -h localhost -p 5434 -U canopy-indexer -d indexer
 
 # Reset database (drop and recreate)
 db-reset:
+	@echo "Ensuring indexer database exists..."
+	PGPASSWORD=canopy-indexer123 psql -h localhost -p 5434 -U canopy-indexer -d postgres -c "CREATE DATABASE indexer;" 2>/dev/null || echo "Database indexer already exists"
 	@echo "Resetting all schemas in indexer database..."
 	PGPASSWORD=canopy-indexer123 psql -h localhost -p 5434 -U canopy-indexer -d indexer -c "DROP SCHEMA IF EXISTS admin CASCADE; DROP SCHEMA IF EXISTS crosschain CASCADE;"
 	PGPASSWORD=canopy-indexer123 psql -h localhost -p 5434 -U canopy-indexer -d indexer -tAc "SELECT 'DROP SCHEMA ' || schema_name || ' CASCADE;' FROM information_schema.schemata WHERE schema_name LIKE 'chain_%'" | PGPASSWORD=canopy-indexer123 psql -h localhost -p 5434 -U canopy-indexer -d indexer

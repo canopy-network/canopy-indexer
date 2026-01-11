@@ -5,8 +5,14 @@ PostgreSQL indexer for the Canopy blockchain.
 ## Quick Start
 
 ```bash
+# Start dependencies
+docker-compose up -d postgres redis
+
 # Build
 make build
+
+# Initialize database
+make migrate
 
 # Run (requires env vars)
 make run
@@ -17,6 +23,39 @@ make run
 - Go 1.21+
 - PostgreSQL
 - Redis
+
+## Database Setup
+
+The indexer uses PostgreSQL with schema-based organization. The database must exist before running the indexer.
+
+### Docker Compose (Recommended)
+
+```bash
+# Start PostgreSQL
+docker-compose up -d postgres
+
+# The database and initial schema will be created automatically
+```
+
+### Local PostgreSQL
+
+```bash
+# Create the indexer database
+createdb -U canopy-indexer indexer
+
+# Run initial migrations
+make migrate
+```
+
+### Tilt Development
+
+```bash
+# Start Tilt (includes database setup)
+tilt up
+
+# Or run database initialization manually
+tilt trigger db-init
+```
 
 ## Environment Variables
 
@@ -84,8 +123,10 @@ make fmt
 # Lint
 make lint
 
-# Run migrations
-make migrate
+# Database setup
+make migrate      # Run migrations (creates database if needed)
+make psql         # Connect to database
+make db-reset     # Reset all data
 
 # Show indexing progress
 make show-progress

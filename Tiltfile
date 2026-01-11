@@ -51,8 +51,8 @@ local_resource(
         export PGPASSWORD={pgpassword}
         export DATABASE_URL="{database_url}"
 
-        # Check if tables exist
-        TABLE_COUNT=$(psql -h {pg_host} -p {pg_port} -U {pg_user} -d {pg_db} -tAc "SELECT COUNT(*) FROM pg_tables WHERE schemaname='public'" 2>/dev/null || echo "0")
+        # Check if admin schema tables exist
+        TABLE_COUNT=$(psql -h {pg_host} -p {pg_port} -U {pg_user} -d {pg_db} -tAc "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='admin'" 2>/dev/null || echo "0")
 
         if [ "$TABLE_COUNT" -eq 0 ] || [ "$TABLE_COUNT" = "" ]; then
             echo "Database is empty, running migrations..."
@@ -73,6 +73,26 @@ local_resource(
     labels=['database'],
     trigger_mode=TRIGGER_MODE_MANUAL,
     auto_init=True,
+)
+
+# Database initialization - ensure indexer database exists
+local_resource(
+    'db-init',
+    cmd='''
+        echo "Ensuring indexer database exists..."
+        export PGPASSWORD={pgpassword}
+        psql -h {pg_host} -p {pg_port} -U {pg_user} -d postgres -c "CREATE DATABASE \\"{pg_db}\\";" 2>/dev/null || echo "Database {pg_db} already exists"
+        echo "Running initial migrations..."
+        psql -h {pg_host} -p {pg_port} -U {pg_user} -d {pg_db} -f migrations/001_initial.sql 2>/dev/null || echo "Migrations may have already been run"
+        echo "Database initialization complete."
+    '''.format(
+        pgpassword=PGPASSWORD,
+        pg_host=PG_HOST,
+        pg_port=PG_PORT,
+        pg_user=PG_USER,
+        pg_db=PG_DB,
+    ),
+    allow_parallel=True,
 )
 
 # Database reset - complete clean slate (drops and recreates indexer database with all schemas)
@@ -148,7 +168,7 @@ local_resource(
     deps=['cmd/indexer', 'internal', 'pkg'],
     ignore=['**/*_test.go', '**/.git', '**/bin', '**/*.md', '**/.claude'],
     labels=['indexer'],
-    resource_deps=['db-migrate', 'redis'],
+    resource_deps=['db-init', 'redis'],
     allow_parallel=True,
 )
 
@@ -159,7 +179,7 @@ local_resource(
     deps=['cmd/backfill', 'internal', 'pkg'],
     ignore=['**/*_test.go', '**/.git', '**/bin', '**/*.md', '**/.claude'],
     labels=['indexer'],
-    resource_deps=['db-migrate'],
+    resource_deps=['db-init'],
     allow_parallel=True,
 )
 
@@ -327,6 +347,7 @@ print("   • Backfill: indexes all 100 chains (runs automatically)")
 print("")
 print("🔧 Utility commands (trigger manually):")
 print("   • backfill-run: Restart backfill container")
+print("   • db-init: Initialize indexer database and run migrations")
 print("   • db-reset: DROP and RECREATE indexer database (with all schemas: admin, crosschain, chain_*)")
 print("   • add-nodes: Add canopy nodes via script")
 print("   • redis-clear: Clear Redis streams")
