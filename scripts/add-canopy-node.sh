@@ -53,7 +53,7 @@ add_chain() {
 add_chain 1 "Canopy Node 1" "http://canopy-node-1:50002" "Local Canopy blockchain node 1 for development"
 
 # Add canopy-node-2 (Chain ID 2)
-add_chain 2 "Canopy Node 2" "http://canopy-node-2:50002" "Local Canopy blockchain node 2 for development"
+# add_chain 2 "Canopy Node 2" "http://canopy-node-2:50002" "Local Canopy blockchain node 2 for development"
 
 echo "The indexer will discover these chains within 30 seconds."
 echo "You can verify by checking the indexer logs:"
