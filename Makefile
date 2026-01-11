@@ -1,6 +1,31 @@
-.PHONY: build build-linux build-backfill build-all run test clean migrate psql tilt \
+.PHONY: help build build-linux build-backfill build-all run test clean migrate psql tilt \
 	docker-build docker-build-dev fmt lint generate show-progress show-stats \
 	backfill backfill-stats backfill-dry-run backfill-range backfill-fast show-gaps
+
+.DEFAULT_GOAL := help
+
+help: ## Show this help message
+	@echo "Available targets:"
+	@echo ""
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}'
+	@echo ""
+	@echo "Build targets:"
+	@echo "  build, build-backfill, build-all, build-linux"
+	@echo ""
+	@echo "Run targets:"
+	@echo "  run, test"
+	@echo ""
+	@echo "Database targets:"
+	@echo "  migrate, psql, db-reset, show-progress, show-stats, show-gaps"
+	@echo ""
+	@echo "Backfill targets:"
+	@echo "  backfill, backfill-stats, backfill-dry-run, backfill-range, backfill-fast"
+	@echo ""
+	@echo "Development targets:"
+	@echo "  tilt, tilt-down, fmt, lint, generate"
+	@echo ""
+	@echo "Docker targets:"
+	@echo "  docker-build, docker-build-dev"
 
 # Build the indexer (native)
 build:
