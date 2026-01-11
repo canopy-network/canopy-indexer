@@ -12,7 +12,6 @@ func (db *DB) initEvents(ctx context.Context) error {
 		CREATE TABLE IF NOT EXISTS %s (
 			height BIGINT NOT NULL,
 			chain_id BIGINT NOT NULL,
-			event_chain_id BIGINT NOT NULL,
 			address TEXT NOT NULL,
 			reference TEXT NOT NULL,
 			event_type TEXT NOT NULL,
@@ -34,7 +33,7 @@ func (db *DB) initEvents(ctx context.Context) error {
 			msg TEXT NOT NULL, -- JSON message data
 			height_time TIMESTAMP WITH TIME ZONE NOT NULL,
 			created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-			PRIMARY KEY (chain_id, height, event_chain_id, address, reference, event_type)
+			PRIMARY KEY (height, chain_id, address, reference, event_type)
 		);
 
 		CREATE INDEX IF NOT EXISTS idx_events_address ON %s(address);

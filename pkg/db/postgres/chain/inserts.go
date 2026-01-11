@@ -285,7 +285,7 @@ func (db *DB) insertEvents(ctx context.Context, exec postgres.Executor, events [
 		) VALUES (
 			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22
 		)
-		ON CONFLICT (height, event_type, chain_id, address, reference) DO UPDATE SET
+		ON CONFLICT (height, chain_id, address, reference, event_type) DO UPDATE SET
 			block_height = EXCLUDED.block_height,
 			amount = EXCLUDED.amount,
 			sold_amount = EXCLUDED.sold_amount,
