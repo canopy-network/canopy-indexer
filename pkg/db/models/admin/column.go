@@ -10,11 +10,9 @@ type ColumnDef = indexer.ColumnDef
 
 // Re-export helper functions from the indexer package
 var (
-	ColumnsToSchemaSQL           = indexer.ColumnsToSchemaSQL
-	ColumnsToCrossChainSchemaSQL = indexer.ColumnsToCrossChainSchemaSQL
-	ColumnsToNameList            = indexer.ColumnsToNameList
-	FilterCrossChainColumns      = indexer.FilterCrossChainColumns
-	GetCrossChainColumnNames     = indexer.GetCrossChainColumnNames
-	GetCrossChainSelectExprs     = indexer.GetCrossChainSelectExprs
-	ValidateColumns              = indexer.ValidateColumns
+	ColumnsToNameList        = indexer.ColumnsToNameList
+	FilterCrossChainColumns  = indexer.FilterCrossChainColumns
+	GetCrossChainColumnNames = indexer.GetCrossChainColumnNames
+	GetCrossChainSelectExprs = indexer.GetCrossChainSelectExprs
+	ValidateColumns          = indexer.ValidateColumns
 )

@@ -9,18 +9,18 @@ const ValidatorsStagingTableName = "validators_staging"
 
 // ValidatorColumns defines the schema for the validators table.
 var ValidatorColumns = []ColumnDef{
-	{Name: "address", Type: "String", Codec: "ZSTD(1)"},
-	{Name: "public_key", Type: "String", Codec: "ZSTD(1)"},
-	{Name: "net_address", Type: "String", Codec: "ZSTD(1)"},
-	{Name: "staked_amount", Type: "UInt64", Codec: "Delta, ZSTD(3)"},
-	{Name: "max_paused_height", Type: "UInt64", Codec: "Delta, ZSTD(3)"},
-	{Name: "unstaking_height", Type: "UInt64", Codec: "Delta, ZSTD(3)"},
-	{Name: "output", Type: "String", Codec: "ZSTD(1)"},
-	{Name: "delegate", Type: "UInt8 DEFAULT 0"},
-	{Name: "compound", Type: "UInt8 DEFAULT 0"},
-	{Name: "status", Type: "String", Codec: "ZSTD(1)"},
-	{Name: "height", Type: "UInt64", Codec: "Delta, ZSTD(3)"},
-	{Name: "height_time", Type: "DateTime64(3)", Codec: "DoubleDelta, ZSTD(1)"},
+	{Name: "address"},
+	{Name: "public_key"},
+	{Name: "net_address"},
+	{Name: "staked_amount"},
+	{Name: "max_paused_height"},
+	{Name: "unstaking_height"},
+	{Name: "output"},
+	{Name: "delegate"},
+	{Name: "compound"},
+	{Name: "status"},
+	{Name: "height"},
+	{Name: "height_time"},
 }
 
 // Validator represents a versioned snapshot of a validator's state.

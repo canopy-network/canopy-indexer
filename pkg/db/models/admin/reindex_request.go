@@ -12,13 +12,13 @@ const (
 
 // ReindexRequestColumns defines the schema for the reindex_requests table.
 var ReindexRequestColumns = []ColumnDef{
-	{Name: "chain_id", Type: "UInt64"},
-	{Name: "height", Type: "UInt64"},
-	{Name: "requested_by", Type: "String"},
-	{Name: "status", Type: "String"},
-	{Name: "workflow_id", Type: "String"},
-	{Name: "run_id", Type: "String"},
-	{Name: "requested_at", Type: "DateTime"},
+	{Name: "chain_id"},
+	{Name: "height"},
+	{Name: "requested_by"},
+	{Name: "status"},
+	{Name: "workflow_id"},
+	{Name: "run_id"},
+	{Name: "requested_at"},
 }
 
 type ReindexRequest struct {

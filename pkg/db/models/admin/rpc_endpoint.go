@@ -8,13 +8,13 @@ const RPCEndpointsTableName = "rpc_endpoints"
 
 // RPCEndpointColumns defines the schema for the rpc_endpoints table.
 var RPCEndpointColumns = []ColumnDef{
-	{Name: "chain_id", Type: "UInt64"},
-	{Name: "endpoint", Type: "String"},
-	{Name: "status", Type: "String"},
-	{Name: "height", Type: "UInt64"},
-	{Name: "latency_ms", Type: "Float64"},
-	{Name: "error", Type: "String"},
-	{Name: "updated_at", Type: "DateTime"},
+	{Name: "chain_id"},
+	{Name: "endpoint"},
+	{Name: "status"},
+	{Name: "height"},
+	{Name: "latency_ms"},
+	{Name: "error"},
+	{Name: "updated_at"},
 }
 
 // RPCEndpoint represents the health status of a single RPC endpoint.

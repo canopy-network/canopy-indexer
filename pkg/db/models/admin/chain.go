@@ -8,14 +8,14 @@ const ChainsTableName = "chains"
 
 // ChainColumns defines the schema for the chains table.
 var ChainColumns = []ColumnDef{
-	{Name: "chain_id", Type: "UInt64"},
-	{Name: "chain_name", Type: "String"},
-	{Name: "rpc_endpoints", Type: "Array(String)"},
-	{Name: "paused", Type: "UInt8"},
-	{Name: "deleted", Type: "UInt8"},
-	{Name: "notes", Type: "String"},
-	{Name: "created_at", Type: "DateTime"},
-	{Name: "updated_at", Type: "DateTime"},
+	{Name: "chain_id"},
+	{Name: "chain_name"},
+	{Name: "rpc_endpoints"},
+	{Name: "paused"},
+	{Name: "deleted"},
+	{Name: "notes"},
+	{Name: "created_at"},
+	{Name: "updated_at"},
 }
 
 type Chain struct {

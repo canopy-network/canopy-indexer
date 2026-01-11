@@ -16,19 +16,19 @@ const (
 
 // OrderColumns defines the schema for the orders table.
 var OrderColumns = []ColumnDef{
-	{Name: "order_id", Type: "String", Codec: "ZSTD(1)"},
-	{Name: "height", Type: "UInt64", Codec: "DoubleDelta, LZ4"},
-	{Name: "height_time", Type: "DateTime64(6)", Codec: "DoubleDelta, LZ4"},
-	{Name: "committee", Type: "UInt16", Codec: "Delta, ZSTD(1)"},
-	{Name: "data", Type: "String", Codec: "ZSTD(1)"},
-	{Name: "amount_for_sale", Type: "UInt64", Codec: "Delta, ZSTD(3)"},
-	{Name: "requested_amount", Type: "UInt64", Codec: "Delta, ZSTD(3)"},
-	{Name: "seller_receive_address", Type: "String", Codec: "ZSTD(1)"},
-	{Name: "buyer_send_address", Type: "String", Codec: "ZSTD(1)"},
-	{Name: "buyer_receive_address", Type: "String", Codec: "ZSTD(1)"},
-	{Name: "buyer_chain_deadline", Type: "UInt64", Codec: "Delta, ZSTD(3)"},
-	{Name: "sellers_send_address", Type: "String", Codec: "ZSTD(1)"},
-	{Name: "status", Type: "LowCardinality(String)"},
+	{Name: "order_id"},
+	{Name: "height"},
+	{Name: "height_time"},
+	{Name: "committee"},
+	{Name: "data"},
+	{Name: "amount_for_sale"},
+	{Name: "requested_amount"},
+	{Name: "seller_receive_address"},
+	{Name: "buyer_send_address"},
+	{Name: "buyer_receive_address"},
+	{Name: "buyer_chain_deadline"},
+	{Name: "sellers_send_address"},
+	{Name: "status"},
 }
 
 // Order represents a versioned snapshot of an order's state.

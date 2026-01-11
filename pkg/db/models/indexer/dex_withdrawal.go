@@ -11,16 +11,16 @@ const DexWithdrawalsStagingTableName = DexWithdrawalsProductionTableName + entit
 
 // DexWithdrawalColumns defines the schema for the dex_withdrawals table.
 var DexWithdrawalColumns = []ColumnDef{
-	{Name: "order_id", Type: "String", Codec: "ZSTD(1)"},
-	{Name: "height", Type: "UInt64", Codec: "DoubleDelta, LZ4"},
-	{Name: "height_time", Type: "DateTime64(6)", Codec: "DoubleDelta, LZ4"},
-	{Name: "committee", Type: "UInt16", Codec: "Delta, ZSTD(1)"},
-	{Name: "address", Type: "String", Codec: "ZSTD(1)"},
-	{Name: "percent", Type: "UInt64", Codec: "Delta, ZSTD(3)"},
-	{Name: "state", Type: "LowCardinality(String)"},
-	{Name: "local_amount", Type: "UInt64", Codec: "Delta, ZSTD(3)"},
-	{Name: "remote_amount", Type: "UInt64", Codec: "Delta, ZSTD(3)"},
-	{Name: "points_burned", Type: "UInt64", Codec: "Delta, ZSTD(3)"},
+	{Name: "order_id"},
+	{Name: "height"},
+	{Name: "height_time"},
+	{Name: "committee"},
+	{Name: "address"},
+	{Name: "percent"},
+	{Name: "state"},
+	{Name: "local_amount"},
+	{Name: "remote_amount"},
+	{Name: "points_burned"},
 }
 
 // DexWithdrawal represents a versioned snapshot of a DEX liquidity withdrawal.

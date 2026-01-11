@@ -20,24 +20,24 @@ const LPPositionSnapshotsUpdateAtColumnName = "updated_at"
 // - DoubleDelta,ZSTD(1) for timestamps
 var LPPositionSnapshotColumns = []ColumnDef{
 	// Position Identity
-	{Name: "source_chain_id", Type: "UInt16", Codec: "Delta, ZSTD(1)"},
-	{Name: "address", Type: "String", Codec: "ZSTD(1)"},
-	{Name: "pool_id", Type: "UInt32", Codec: "Delta, ZSTD(1)"},
+	{Name: "source_chain_id"},
+	{Name: "address"},
+	{Name: "pool_id"},
 
 	// Snapshot Date & State
-	{Name: "snapshot_date", Type: "Date", Codec: "Delta, ZSTD(1)"},
-	{Name: "snapshot_height", Type: "UInt64", Codec: "DoubleDelta, ZSTD(1)"},
-	{Name: "snapshot_balance", Type: "UInt64", Codec: "Delta, ZSTD(3)"},
-	{Name: "pool_share_percentage", Type: "UInt64", Codec: "Delta, ZSTD(3)"}, // 6 decimal precision: 25.46421% = 25464210
+	{Name: "snapshot_date"},
+	{Name: "snapshot_height"},
+	{Name: "snapshot_balance"},
+	{Name: "pool_share_percentage"}, // 6 decimal precision: 25.46421% = 25464210
 
 	// Position Lifecycle
-	{Name: "position_created_date", Type: "Date", Codec: "Delta, ZSTD(1)"},
-	{Name: "position_closed_date", Type: "Date DEFAULT '1970-01-01'", Codec: "ZSTD(1)"}, // Default to epoch if not closed
-	{Name: "is_position_active", Type: "UInt8", Codec: "ZSTD(1)"},
+	{Name: "position_created_date"},
+	{Name: "position_closed_date"}, // Default to epoch if not closed
+	{Name: "is_position_active"},
 
 	// Metadata
-	{Name: "computed_at", Type: "DateTime64(6)", Codec: "DoubleDelta, ZSTD(1)"},
-	{Name: LPPositionSnapshotsUpdateAtColumnName, Type: "DateTime64(6)", Codec: "DoubleDelta, ZSTD(1)"},
+	{Name: "computed_at"},
+	{Name: LPPositionSnapshotsUpdateAtColumnName},
 }
 
 // LPPositionSnapshot stores daily snapshots of liquidity provider positions.

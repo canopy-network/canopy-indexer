@@ -16,17 +16,17 @@ const CommitteeValidatorStagingTableName = "committee_validators_staging"
 // Denormalized fields from Committee entity enable queries like
 // "show all validators in subsidized committees" without JOIN.
 var CommitteeValidatorColumns = []ColumnDef{
-	{Name: "committee_id", Type: "UInt64", Codec: "Delta, ZSTD(3)"},
-	{Name: "validator_address", Type: "String", Codec: "ZSTD(1)", CrossChainRename: "address"},
-	{Name: "staked_amount", Type: "UInt64", Codec: "Delta, ZSTD(3)"},
-	{Name: "status", Type: "LowCardinality(String)", Codec: "ZSTD(1)"},
-	{Name: "delegate", Type: "Bool", Codec: "ZSTD(1)"},
-	{Name: "compound", Type: "Bool", Codec: "ZSTD(1)"},
-	{Name: "height", Type: "UInt64", Codec: "DoubleDelta, LZ4"},
-	{Name: "height_time", Type: "DateTime64(3)", Codec: "DoubleDelta, LZ4"},
+	{Name: "committee_id"},
+	{Name: "validator_address", CrossChainRename: "address"},
+	{Name: "staked_amount"},
+	{Name: "status"},
+	{Name: "delegate"},
+	{Name: "compound"},
+	{Name: "height"},
+	{Name: "height_time"},
 	// Denormalized from Committee - enables filtering by committee status without JOIN
-	{Name: "subsidized", Type: "Bool", Codec: "ZSTD(1)"},
-	{Name: "retired", Type: "Bool", Codec: "ZSTD(1)"},
+	{Name: "subsidized"},
+	{Name: "retired"},
 }
 
 // CommitteeValidator represents the junction table between committees and validators.

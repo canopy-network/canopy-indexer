@@ -9,12 +9,12 @@ const ValidatorDoubleSigningInfoStagingTableName = "validator_double_signing_inf
 
 // ValidatorDoubleSigningInfoColumns defines the schema for the validator_double_signing_info table.
 var ValidatorDoubleSigningInfoColumns = []ColumnDef{
-	{Name: "address", Type: "String", Codec: "ZSTD(1)"},
-	{Name: "evidence_count", Type: "UInt64", Codec: "Delta, ZSTD(1)"},
-	{Name: "first_evidence_height", Type: "UInt64", Codec: "Delta, ZSTD(1)"},
-	{Name: "last_evidence_height", Type: "UInt64", Codec: "Delta, ZSTD(1)"},
-	{Name: "height", Type: "UInt64", Codec: "Delta, ZSTD(1)"},
-	{Name: "height_time", Type: "DateTime64(3)", Codec: "DoubleDelta, ZSTD(1)"},
+	{Name: "address"},
+	{Name: "evidence_count"},
+	{Name: "first_evidence_height"},
+	{Name: "last_evidence_height"},
+	{Name: "height"},
+	{Name: "height_time"},
 }
 
 // ValidatorDoubleSigningInfo represents a versioned snapshot of a validator's double-signing evidence.

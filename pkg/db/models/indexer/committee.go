@@ -16,14 +16,14 @@ const (
 // - Delta,ZSTD(3) for gradually changing counts and chain_id
 // - ZSTD(1) for boolean flags
 var CommitteeColumns = []ColumnDef{
-	{Name: "chain_id", Type: "UInt16", Codec: "Delta, ZSTD(1)", CrossChainRename: "committee_chain_id"},
-	{Name: "last_root_height_updated", Type: "UInt64", Codec: "Delta, ZSTD(3)"},
-	{Name: "last_chain_height_updated", Type: "UInt64", Codec: "Delta, ZSTD(3)"},
-	{Name: "number_of_samples", Type: "UInt64", Codec: "Delta, ZSTD(3)"},
-	{Name: "subsidized", Type: "UInt8", Codec: "ZSTD(1)"},
-	{Name: "retired", Type: "UInt8", Codec: "ZSTD(1)"},
-	{Name: "height", Type: "UInt64", Codec: "DoubleDelta, LZ4"},
-	{Name: "height_time", Type: "DateTime64(6)", Codec: "DoubleDelta, LZ4"},
+	{Name: "chain_id", CrossChainRename: "committee_chain_id"},
+	{Name: "last_root_height_updated"},
+	{Name: "last_chain_height_updated"},
+	{Name: "number_of_samples"},
+	{Name: "subsidized"},
+	{Name: "retired"},
+	{Name: "height"},
+	{Name: "height_time"},
 }
 
 // Committee represents committee data at a specific height.

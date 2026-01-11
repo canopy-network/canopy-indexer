@@ -12,16 +12,16 @@ const DexPricesStagingTableName = "dex_prices_staging"
 // - DoubleDelta,LZ4 for sequential/monotonic values (height, timestamps)
 // - Delta,ZSTD(3) for gradually changing values (chain_id, pool amounts, prices)
 var DexPriceColumns = []ColumnDef{
-	{Name: "local_chain_id", Type: "UInt16", Codec: "Delta, ZSTD(1)"},
-	{Name: "remote_chain_id", Type: "UInt16", Codec: "Delta, ZSTD(1)"},
-	{Name: "height", Type: "UInt64", Codec: "DoubleDelta, LZ4"},
-	{Name: "local_pool", Type: "UInt64", Codec: "Delta, ZSTD(3)"},
-	{Name: "remote_pool", Type: "UInt64", Codec: "Delta, ZSTD(3)"},
-	{Name: "price_e6", Type: "UInt64", Codec: "Delta, ZSTD(3)"},
-	{Name: "height_time", Type: "DateTime64(6)", Codec: "DoubleDelta, LZ4"},
-	{Name: "price_delta", Type: "Int64", Codec: "Delta, ZSTD(3)"},
-	{Name: "local_pool_delta", Type: "Int64", Codec: "Delta, ZSTD(3)"},
-	{Name: "remote_pool_delta", Type: "Int64", Codec: "Delta, ZSTD(3)"},
+	{Name: "local_chain_id"},
+	{Name: "remote_chain_id"},
+	{Name: "height"},
+	{Name: "local_pool"},
+	{Name: "remote_pool"},
+	{Name: "price_e6"},
+	{Name: "height_time"},
+	{Name: "price_delta"},
+	{Name: "local_pool_delta"},
+	{Name: "remote_pool_delta"},
 }
 
 // DexPrice stores DEX price and liquidity pool information for chain pairs.

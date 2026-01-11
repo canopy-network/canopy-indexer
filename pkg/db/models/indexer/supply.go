@@ -9,11 +9,11 @@ const SupplyStagingTableName = "supply_staging"
 
 // SupplyColumns defines the schema for the supply table.
 var SupplyColumns = []ColumnDef{
-	{Name: "total", Type: "UInt64", Codec: "Delta, ZSTD(3)"},
-	{Name: "staked", Type: "UInt64", Codec: "Delta, ZSTD(3)"},
-	{Name: "delegated_only", Type: "UInt64", Codec: "Delta, ZSTD(3)"},
-	{Name: "height", Type: "UInt64", Codec: "Delta, ZSTD(3)"},
-	{Name: "height_time", Type: "DateTime64(3)", Codec: "DoubleDelta, ZSTD(1)"},
+	{Name: "total"},
+	{Name: "staked"},
+	{Name: "delegated_only"},
+	{Name: "height"},
+	{Name: "height_time"},
 }
 
 // Supply represents a versioned snapshot of token supply metrics.

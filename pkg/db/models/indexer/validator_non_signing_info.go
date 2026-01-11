@@ -10,11 +10,11 @@ const ValidatorNonSigningInfoStagingTableName = "validator_non_signing_info_stag
 // ValidatorNonSigningInfoColumns defines the schema for the validator_non_signing_info table.
 // Removed trash properties: start_height, missed_blocks_window (per issues.md)
 var ValidatorNonSigningInfoColumns = []ColumnDef{
-	{Name: "address", Type: "String", Codec: "ZSTD(1)"},
-	{Name: "missed_blocks_count", Type: "UInt64", Codec: "Delta, ZSTD(3)"},
-	{Name: "last_signed_height", Type: "UInt64", Codec: "Delta, ZSTD(3)"},
-	{Name: "height", Type: "UInt64", Codec: "Delta, ZSTD(3)"},
-	{Name: "height_time", Type: "DateTime64(3)", Codec: "DoubleDelta, ZSTD(1)"},
+	{Name: "address"},
+	{Name: "missed_blocks_count"},
+	{Name: "last_signed_height"},
+	{Name: "height"},
+	{Name: "height_time"},
 }
 
 // ValidatorNonSigningInfo represents a versioned snapshot of a validator's non-signing performance.

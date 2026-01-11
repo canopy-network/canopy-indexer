@@ -12,16 +12,16 @@ const PoolPointsByHolderStagingTableName = PoolPointsByHolderProductionTableName
 // PoolPointsByHolderColumns defines the schema for the pool_points_by_holder table.
 // Denormalized fields from Pool entity enable value calculations without JOIN.
 var PoolPointsByHolderColumns = []ColumnDef{
-	{Name: "address", Type: "String", Codec: "ZSTD(1)"},
-	{Name: "pool_id", Type: "UInt32", Codec: "Delta, ZSTD(1)"},
-	{Name: "height", Type: "UInt64", Codec: "DoubleDelta, LZ4"},
-	{Name: "height_time", Type: "DateTime64(6)", Codec: "DoubleDelta, LZ4"},
-	{Name: "committee", Type: "UInt16", Codec: "Delta, ZSTD(1)"},
-	{Name: "points", Type: "UInt64", Codec: "Delta, ZSTD(3)"},
-	{Name: "liquidity_pool_points", Type: "UInt64", Codec: "Delta, ZSTD(3)"},
-	{Name: "liquidity_pool_id", Type: "UInt32", Codec: "Delta, ZSTD(1)"},
+	{Name: "address"},
+	{Name: "pool_id"},
+	{Name: "height"},
+	{Name: "height_time"},
+	{Name: "committee"},
+	{Name: "points"},
+	{Name: "liquidity_pool_points"},
+	{Name: "liquidity_pool_id"},
 	// Denormalized from Pool - enables holder value calculation without JOIN
-	{Name: "pool_amount", Type: "UInt64", Codec: "Delta, ZSTD(3)"},
+	{Name: "pool_amount"},
 }
 
 // PoolPointsByHolder represents a versioned snapshot of a liquidity provider's pool points.

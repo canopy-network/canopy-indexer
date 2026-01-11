@@ -10,12 +10,12 @@ const IndexProgressMvTableName = "index_progress_mv"
 
 // IndexProgressColumns defines the schema for the index_progress table.
 var IndexProgressColumns = []ColumnDef{
-	{Name: "chain_id", Type: "UInt64"},
-	{Name: "height", Type: "UInt64"},
-	{Name: "indexed_at", Type: "DateTime64(6)"},
-	{Name: "indexing_time", Type: "Float64"},
-	{Name: "indexing_time_ms", Type: "Float64"},
-	{Name: "indexing_detail", Type: "String"},
+	{Name: "chain_id"},
+	{Name: "height"},
+	{Name: "indexed_at"},
+	{Name: "indexing_time"},
+	{Name: "indexing_time_ms"},
+	{Name: "indexing_detail"},
 }
 
 // IndexProgress Raw indexing progress (one row per indexed height).

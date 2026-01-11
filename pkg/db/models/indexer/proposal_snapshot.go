@@ -16,21 +16,21 @@ const ProposalSnapshotsProductionTableName = "proposal_snapshots"
 // - ZSTD(1) for boolean (approval flag)
 // - LowCardinality(String) for type field (limited set of proposal types)
 var ProposalSnapshotColumns = []ColumnDef{
-	{Name: "proposal_hash", Type: "String", Codec: "ZSTD(1)"},
-	{Name: "proposal", Type: "String", Codec: "ZSTD(1)"}, // JSON proposal data (full message)
-	{Name: "approve", Type: "Bool", Codec: "ZSTD(1)"},    // Node approval flag
-	{Name: "snapshot_time", Type: "DateTime64(6)", Codec: "DoubleDelta, LZ4"},
+	{Name: "proposal_hash"},
+	{Name: "proposal"}, // JSON proposal data (full message)
+	{Name: "approve"},  // Node approval flag
+	{Name: "snapshot_time"},
 
 	// Exploded proposal fields for efficient querying
-	{Name: "proposal_type", Type: "LowCardinality(String)", Codec: "ZSTD(1)"},        // Message type (changeParameter, daoTransfer)
-	{Name: "signer", Type: "String", Codec: "ZSTD(1)"},                               // Proposal signer address
-	{Name: "start_height", Type: "UInt64", Codec: "DoubleDelta, LZ4"},                // Proposal start height
-	{Name: "end_height", Type: "UInt64", Codec: "DoubleDelta, LZ4"},                  // Proposal end height
-	{Name: "parameter_space", Type: "String DEFAULT ''", Codec: "ZSTD(1)"},           // For changeParameter: fee, val, cons, gov
-	{Name: "parameter_key", Type: "String DEFAULT ''", Codec: "ZSTD(1)"},             // For changeParameter: parameter name
-	{Name: "parameter_value", Type: "String DEFAULT ''", Codec: "ZSTD(1)"},           // For changeParameter: parameter value as string
-	{Name: "dao_transfer_address", Type: "String DEFAULT ''", Codec: "ZSTD(1)"},      // For daoTransfer: recipient address
-	{Name: "dao_transfer_amount", Type: "UInt64 DEFAULT 0", Codec: "Delta, ZSTD(3)"}, // For daoTransfer: amount
+	{Name: "proposal_type"},        // Message type (changeParameter, daoTransfer)
+	{Name: "signer"},               // Proposal signer address
+	{Name: "start_height"},         // Proposal start height
+	{Name: "end_height"},           // Proposal end height
+	{Name: "parameter_space"},      // For changeParameter: fee, val, cons, gov
+	{Name: "parameter_key"},        // For changeParameter: parameter name
+	{Name: "parameter_value"},      // For changeParameter: parameter value as string
+	{Name: "dao_transfer_address"}, // For daoTransfer: recipient address
+	{Name: "dao_transfer_amount"},  // For daoTransfer: amount
 }
 
 // ProposalSnapshot stores time-series snapshots of governance proposals.

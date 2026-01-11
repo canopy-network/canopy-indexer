@@ -12,20 +12,20 @@ const PoolsStagingTableName = "pools_staging"
 // NOTE: chain_id is renamed to pool_chain_id in cross-chain tables to avoid conflict
 // with the cross-chain table's chain_id column (which indicates the source database).
 var PoolColumns = []ColumnDef{
-	{Name: "pool_id", Type: "UInt32"},
-	{Name: "height", Type: "UInt64"},
-	{Name: "chain_id", Type: "UInt16", Codec: "Delta, ZSTD(1)", CrossChainRename: "pool_chain_id"},
-	{Name: "amount", Type: "UInt64"},
-	{Name: "total_points", Type: "UInt64"},
-	{Name: "lp_count", Type: "UInt16"},
-	{Name: "height_time", Type: "DateTime64(6)"},
-	{Name: "liquidity_pool_id", Type: "UInt32"},
-	{Name: "holding_pool_id", Type: "UInt32"},
-	{Name: "escrow_pool_id", Type: "UInt32"},
-	{Name: "reward_pool_id", Type: "UInt32"},
-	{Name: "amount_delta", Type: "Int64", Codec: "Delta, ZSTD(3)"},
-	{Name: "total_points_delta", Type: "Int64", Codec: "Delta, ZSTD(3)"},
-	{Name: "lp_count_delta", Type: "Int16", Codec: "Delta, ZSTD(3)"},
+	{Name: "pool_id"},
+	{Name: "height"},
+	{Name: "chain_id", CrossChainRename: "pool_chain_id"},
+	{Name: "amount"},
+	{Name: "total_points"},
+	{Name: "lp_count"},
+	{Name: "height_time"},
+	{Name: "liquidity_pool_id"},
+	{Name: "holding_pool_id"},
+	{Name: "escrow_pool_id"},
+	{Name: "reward_pool_id"},
+	{Name: "amount_delta"},
+	{Name: "total_points_delta"},
+	{Name: "lp_count_delta"},
 }
 
 // Pool ID calculation constants (from Canopy blockchain logic)

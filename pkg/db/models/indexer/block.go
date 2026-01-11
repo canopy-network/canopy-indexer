@@ -15,22 +15,22 @@ const BlocksStagingTableName = BlocksProductionTableName + entities.StagingSuffi
 // - ZSTD(1) for strings (hashes, addresses)
 // - Delta,ZSTD(3) for gradually changing counts and metrics
 var BlockColumns = []ColumnDef{
-	{Name: "height", Type: "UInt64", Codec: "DoubleDelta, LZ4"},
-	{Name: "block_hash", Type: "String", Codec: "ZSTD(1)"},
-	{Name: "height_time", Type: "DateTime64(6)", Codec: "DoubleDelta, LZ4"},
-	{Name: "network_id", Type: "UInt32", Codec: "Delta, ZSTD(3)"},
-	{Name: "parent_hash", Type: "String", Codec: "ZSTD(1)"},
-	{Name: "proposer_address", Type: "String", Codec: "ZSTD(1)"},
-	{Name: "size", Type: "Int32", Codec: "Delta, ZSTD(3)"},
+	{Name: "height"},
+	{Name: "block_hash"},
+	{Name: "height_time"},
+	{Name: "network_id"},
+	{Name: "parent_hash"},
+	{Name: "proposer_address"},
+	{Name: "size"},
 	// Block metrics and verification fields
-	{Name: "num_txs", Type: "UInt64", Codec: "Delta, ZSTD(3)"},
-	{Name: "total_txs", Type: "UInt64", Codec: "Delta, ZSTD(3)"},
-	{Name: "total_vdf_iterations", Type: "Int32", Codec: "Delta, ZSTD(3)", CrossChainSkip: true},
+	{Name: "num_txs"},
+	{Name: "total_txs"},
+	{Name: "total_vdf_iterations", CrossChainSkip: true},
 	// Merkle roots for verification
-	{Name: "state_root", Type: "String", Codec: "ZSTD(1)", CrossChainSkip: true},
-	{Name: "transaction_root", Type: "String", Codec: "ZSTD(1)", CrossChainSkip: true},
-	{Name: "validator_root", Type: "String", Codec: "ZSTD(1)", CrossChainSkip: true},
-	{Name: "next_validator_root", Type: "String", Codec: "ZSTD(1)", CrossChainSkip: true},
+	{Name: "state_root", CrossChainSkip: true},
+	{Name: "transaction_root", CrossChainSkip: true},
+	{Name: "validator_root", CrossChainSkip: true},
+	{Name: "next_validator_root", CrossChainSkip: true},
 }
 
 type Block struct {

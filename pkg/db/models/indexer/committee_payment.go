@@ -7,11 +7,11 @@ const CommitteePaymentsStagingTableName = CommitteePaymentsProductionTableName +
 
 // CommitteePaymentColumns defines the schema for the committee_payments table.
 var CommitteePaymentColumns = []ColumnDef{
-	{Name: "committee_id", Type: "UInt64", Codec: "ZSTD(1)"},
-	{Name: "address", Type: "String", Codec: "ZSTD(1)"},
-	{Name: "percent", Type: "UInt64", Codec: "ZSTD(1)"},
-	{Name: "height", Type: "UInt64", Codec: "Delta, ZSTD(1)"},
-	{Name: "height_time", Type: "DateTime64(3)", Codec: "DoubleDelta, ZSTD(1)"},
+	{Name: "committee_id"},
+	{Name: "address"},
+	{Name: "percent"},
+	{Name: "height"},
+	{Name: "height_time"},
 }
 
 // CommitteePayment represents a payment recipient and their percentage share for a committee.
