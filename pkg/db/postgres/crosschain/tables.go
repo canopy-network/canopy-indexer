@@ -243,6 +243,8 @@ func (db *DB) initEvents(ctx context.Context) error {
 			data TEXT DEFAULT '',
 			seller_receive_address TEXT DEFAULT '',
 			buyer_send_address TEXT DEFAULT '',
+			sellers_send_address TEXT DEFAULT '',
+			msg JSONB NOT NULL,
 			created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
 			updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
 			PRIMARY KEY (chain_id, height, event_chain_id, address, reference, event_type)
