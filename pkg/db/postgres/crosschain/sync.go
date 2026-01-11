@@ -46,13 +46,34 @@ func (db *DB) createSyncTrigger(ctx context.Context, tx pgx.Tx, chainID uint64, 
 	triggerName := fmt.Sprintf("sync_to_crosschain_%d", chainID)
 	functionName := fmt.Sprintf("sync_%s_to_crosschain_%d", cfg.TableName, chainID)
 
+	// Get the original column definitions to handle CrossChainRename mapping
+	columnDefs := dbtypes.GetColumnDefsForTable(cfg.TableName)
+	if columnDefs == nil {
+		return fmt.Errorf("column definitions not found for table: %s", cfg.TableName)
+	}
+
+	// Build mapping from crosschain column name to per-chain column name
+	crosschainNameToPerChainName := make(map[string]string)
+	for _, colDef := range columnDefs {
+		if colDef.CrossChainSkip {
+			continue
+		}
+		crosschainName := colDef.GetCrossChainName()
+		crosschainNameToPerChainName[crosschainName] = colDef.Name
+	}
+
 	// Build column list for INSERT (excluding chain_id and updated_at which we add)
 	columnList := strings.Join(cfg.ColumnNames, ", ")
 
-	// Build NEW.column_name list for SELECT
+	// Build NEW.column_name list for SELECT, mapping crosschain names back to per-chain names
 	newColumns := make([]string, len(cfg.ColumnNames))
 	for i, col := range cfg.ColumnNames {
-		newColumns[i] = "NEW." + col
+		perChainName := crosschainNameToPerChainName[col]
+		if perChainName == "" {
+			// Fallback to the column name itself if no mapping found
+			perChainName = col
+		}
+		newColumns[i] = "NEW." + perChainName
 	}
 	newColumnList := strings.Join(newColumns, ", ")
 

@@ -127,3 +127,39 @@ func GetTableConfigs() []TableConfig {
 		},
 	}
 }
+
+// GetColumnDefsForTable returns the column definitions for a given table name.
+// This is used to map between per-chain and crosschain column names (e.g., chain_id -> pool_chain_id).
+func GetColumnDefsForTable(tableName string) []indexermodels.ColumnDef {
+	switch tableName {
+	case indexermodels.AccountsProductionTableName:
+		return indexermodels.AccountColumns
+	case indexermodels.ValidatorsProductionTableName:
+		return indexermodels.ValidatorColumns
+	case indexermodels.ValidatorNonSigningInfoProductionTableName:
+		return indexermodels.ValidatorNonSigningInfoColumns
+	case indexermodels.ValidatorDoubleSigningInfoProductionTableName:
+		return indexermodels.ValidatorDoubleSigningInfoColumns
+	case indexermodels.PoolsProductionTableName:
+		return indexermodels.PoolColumns
+	case indexermodels.PoolPointsByHolderProductionTableName:
+		return indexermodels.PoolPointsByHolderColumns
+	case indexermodels.OrdersProductionTableName:
+		return indexermodels.OrderColumns
+	case indexermodels.DexOrdersProductionTableName:
+		return indexermodels.DexOrderColumns
+	case indexermodels.DexDepositsProductionTableName:
+		return indexermodels.DexDepositColumns
+	case indexermodels.DexWithdrawalsProductionTableName:
+		return indexermodels.DexWithdrawalColumns
+	case indexermodels.BlockSummariesProductionTableName:
+		return indexermodels.BlockSummaryColumns
+	case indexermodels.CommitteePaymentsProductionTableName:
+		return indexermodels.CommitteePaymentColumns
+	case indexermodels.EventsProductionTableName:
+		return indexermodels.EventColumns
+	case indexermodels.TxsProductionTableName:
+		return indexermodels.TransactionColumns
+	}
+	return nil
+}
