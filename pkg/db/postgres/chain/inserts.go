@@ -366,7 +366,7 @@ func (db *DB) insertValidators(ctx context.Context, exec postgres.Executor, vali
 			compound = EXCLUDED.compound,
 			status = EXCLUDED.status,
 			height_time = EXCLUDED.height_time
-	`, db.SchemaTable("committee_validators"))
+	`, db.SchemaTable("validators"))
 
 	for _, validator := range validators {
 		batch.Queue(query,
