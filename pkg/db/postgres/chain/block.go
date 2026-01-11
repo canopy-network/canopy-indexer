@@ -13,8 +13,8 @@ func (db *DB) initBlocks(ctx context.Context) error {
 	query := fmt.Sprintf(`
 		CREATE TABLE IF NOT EXISTS %s (
 			height BIGINT PRIMARY KEY,
-			hash TEXT NOT NULL,
-			timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
+			block_hash TEXT NOT NULL,
+			height_time TIMESTAMP WITH TIME ZONE NOT NULL,
 			network_id INTEGER NOT NULL,
 			parent_hash TEXT,
 			proposer_address TEXT,
@@ -28,7 +28,7 @@ func (db *DB) initBlocks(ctx context.Context) error {
 			next_validator_root TEXT
 		);
 
-		CREATE INDEX IF NOT EXISTS idx_blocks_timestamp ON %s(timestamp);
+		CREATE INDEX IF NOT EXISTS idx_blocks_height_time ON %s(height_time);
 		CREATE INDEX IF NOT EXISTS idx_blocks_network_id ON %s(network_id);
 		CREATE INDEX IF NOT EXISTS idx_blocks_proposer ON %s(proposer_address);
 	`, blocksTable, blocksTable, blocksTable, blocksTable)

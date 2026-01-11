@@ -35,6 +35,9 @@ CREATE TYPE admin.dex_deposit_state AS ENUM ('pending', 'locked', 'complete');
 -- DEX withdrawal state enum
 CREATE TYPE admin.dex_withdrawal_state AS ENUM ('pending', 'locked', 'complete');
 
+-- Validator status enum for chain schemas
+CREATE TYPE validator_status AS ENUM ('active', 'paused', 'unstaking');
+
 -- ============================================================================
 -- ADMIN TABLES
 -- All admin tables are created in the admin schema

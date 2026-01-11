@@ -74,6 +74,20 @@ func (db *DB) SchemaTable(tableName string) string {
 }
 
 // InitializeDB ensures the required database and tables exist
+// initEnums creates all enum types used by chain databases
+func (db *DB) initEnums(ctx context.Context) error {
+	query := `
+		-- Validator status enum
+		DO $$ BEGIN
+			CREATE TYPE validator_status AS ENUM ('active', 'paused', 'unstaking');
+		EXCEPTION
+			WHEN duplicate_object THEN null;
+		END $$;
+	`
+
+	return db.Exec(ctx, query)
+}
+
 // Creates all tables in parallel for efficiency
 func (db *DB) InitializeDB(ctx context.Context) error {
 	initStart := time.Now()
@@ -87,6 +101,11 @@ func (db *DB) InitializeDB(ctx context.Context) error {
 		return fmt.Errorf("failed to create schema %s: %w", db.Schema, err)
 	}
 	db.Logger.Info("Schema created successfully", zap.String("schema", db.Schema))
+
+	// Create enums used by this schema
+	if err := db.initEnums(ctx); err != nil {
+		return fmt.Errorf("failed to create enums: %w", err)
+	}
 
 	// Create all tables in parallel (no staging tables for Postgres)
 	initOps := []struct {

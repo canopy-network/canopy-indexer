@@ -12,7 +12,7 @@ import (
 // GetBlock retrieves a block by height
 func (db *DB) GetBlock(ctx context.Context, height uint64) (*indexermodels.Block, error) {
 	query := fmt.Sprintf(`
-		SELECT height, hash, timestamp, network_id, parent_hash, proposer_address, size,
+		SELECT height, block_hash, height_time, network_id, parent_hash, proposer_address, size,
 		       num_txs, total_txs, total_vdf_iterations, state_root, transaction_root,
 		       validator_root, next_validator_root
 		FROM %s
@@ -37,7 +37,7 @@ func (db *DB) GetBlock(ctx context.Context, height uint64) (*indexermodels.Block
 
 // GetBlockTime retrieves the timestamp of a block
 func (db *DB) GetBlockTime(ctx context.Context, height uint64) (time.Time, error) {
-	query := fmt.Sprintf(`SELECT timestamp FROM %s WHERE height = $1`, db.SchemaTable("blocks"))
+	query := fmt.Sprintf(`SELECT height_time FROM %s WHERE height = $1`, db.SchemaTable("blocks"))
 
 	var blockTime time.Time
 	err := db.Client.Pool.QueryRow(ctx, query, height).Scan(&blockTime)
@@ -143,11 +143,11 @@ func (db *DB) HasBlock(ctx context.Context, height uint64) (bool, error) {
 // GetHighestBlockBeforeTime retrieves the highest block before a target time
 func (db *DB) GetHighestBlockBeforeTime(ctx context.Context, targetTime time.Time) (*indexermodels.Block, error) {
 	query := fmt.Sprintf(`
-		SELECT height, hash, time, network_id, parent_hash, proposer_address, size,
+		SELECT height, block_hash, height_time, network_id, parent_hash, proposer_address, size,
 		       num_txs, total_txs, total_vdf_iterations, state_root, transaction_root,
 		       validator_root, next_validator_root
 		FROM %s
-		WHERE time <= $1
+		WHERE height_time <= $1
 		ORDER BY height DESC
 		LIMIT 1
 	`, db.SchemaTable("blocks"))

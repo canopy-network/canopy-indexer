@@ -15,13 +15,13 @@ import (
 func (db *DB) insertBlock(ctx context.Context, exec postgres.Executor, block *indexermodels.Block) error {
 	query := fmt.Sprintf(`
 		INSERT INTO %s (
-			height, hash, timestamp, network_id, parent_hash, proposer_address, size,
+			height, block_hash, height_time, network_id, parent_hash, proposer_address, size,
 			num_txs, total_txs, total_vdf_iterations,
 			state_root, transaction_root, validator_root, next_validator_root
 		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
 		ON CONFLICT (height) DO UPDATE SET
-			hash = EXCLUDED.hash,
-			timestamp = EXCLUDED.timestamp,
+			block_hash = EXCLUDED.block_hash,
+			height_time = EXCLUDED.height_time,
 			network_id = EXCLUDED.network_id,
 			parent_hash = EXCLUDED.parent_hash,
 			proposer_address = EXCLUDED.proposer_address,
@@ -52,7 +52,7 @@ func (db *DB) insertTransactions(ctx context.Context, exec postgres.Executor, tx
 	batch := &pgx.Batch{}
 	query := fmt.Sprintf(`
 		INSERT INTO %s (
-			height, tx_hash, tx_index, timestamp, height_time, created_height, network_id,
+			height, tx_hash, tx_index, height_time, tx_time, created_height, network_id,
 			message_type, signer, amount, fee, memo,
 			validator_address, commission,
 			chain_id, sell_amount, buy_amount, liquidity_amount, liquidity_percent,
@@ -66,8 +66,8 @@ func (db *DB) insertTransactions(ctx context.Context, exec postgres.Executor, tx
 		)
 		ON CONFLICT (height, tx_hash) DO UPDATE SET
 			tx_index = EXCLUDED.tx_index,
-			timestamp = EXCLUDED.timestamp,
 			height_time = EXCLUDED.height_time,
+			tx_time = EXCLUDED.tx_time,
 			created_height = EXCLUDED.created_height,
 			network_id = EXCLUDED.network_id,
 			message_type = EXCLUDED.message_type,
@@ -99,7 +99,7 @@ func (db *DB) insertTransactions(ctx context.Context, exec postgres.Executor, tx
 
 	for _, tx := range txs {
 		batch.Queue(query,
-			tx.Height, tx.TxHash, tx.TxIndex, tx.Timestamp, tx.HeightTime, tx.CreatedHeight, tx.NetworkID,
+			tx.Height, tx.TxHash, tx.TxIndex, tx.HeightTime, tx.Timestamp, tx.CreatedHeight, tx.NetworkID,
 			tx.MessageType, tx.Signer, tx.Amount, tx.Fee, tx.Memo,
 			tx.ValidatorAddress, tx.Commission,
 			tx.ChainID, tx.SellAmount, tx.BuyAmount, tx.LiquidityAmt, tx.LiquidityPercent,

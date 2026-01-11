@@ -14,8 +14,8 @@ func (db *DB) initBlocks(ctx context.Context) error {
 		CREATE TABLE IF NOT EXISTS %s (
 			chain_id BIGINT NOT NULL,
 			height BIGINT NOT NULL,
-			hash TEXT NOT NULL,
-			timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
+			block_hash TEXT NOT NULL,
+			height_time TIMESTAMP WITH TIME ZONE NOT NULL,
 			network_id INTEGER NOT NULL,
 			parent_hash TEXT,
 			proposer_address TEXT,
@@ -27,7 +27,7 @@ func (db *DB) initBlocks(ctx context.Context) error {
 			PRIMARY KEY (chain_id, height)
 		);
 
-		CREATE INDEX IF NOT EXISTS idx_blocks_timestamp ON %s(timestamp);
+		CREATE INDEX IF NOT EXISTS idx_blocks_height_time ON %s(height_time);
 	`, blocksTable, blocksTable)
 
 	db.Logger.Debug("Executing SQL for blocks table",
@@ -202,7 +202,7 @@ func (db *DB) initTransactions(ctx context.Context) error {
 			buyer_receive_address   TEXT,
 			buyer_send_address      TEXT,
 			buyer_chain_deadline    BIGINT,
-			msg                     JSONB NOT NULL,
+			msg                     TEXT NOT NULL,
 			public_key              TEXT,
 			signature               TEXT,
 			created_at              TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
@@ -245,7 +245,7 @@ func (db *DB) initEvents(ctx context.Context) error {
 			seller_receive_address TEXT DEFAULT '',
 			buyer_send_address TEXT DEFAULT '',
 			sellers_send_address TEXT DEFAULT '',
-			msg JSONB NOT NULL,
+			msg TEXT NOT NULL,
 			created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
 			updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
 			PRIMARY KEY (chain_id, height, event_chain_id, address, reference, event_type)

@@ -20,7 +20,7 @@ func (db *DB) initValidators(ctx context.Context) error {
 			output TEXT NOT NULL,
 			delegate BOOLEAN NOT NULL DEFAULT false,
 			compound BOOLEAN NOT NULL DEFAULT false,
-			status TEXT NOT NULL DEFAULT 'active', -- active, paused, unstaking
+			status validator_status NOT NULL DEFAULT 'active', -- active, paused, unstaking
 			height_time TIMESTAMP WITH TIME ZONE NOT NULL,
 			PRIMARY KEY (address, height)
 		);
