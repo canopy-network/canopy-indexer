@@ -11,7 +11,8 @@ func (db *DB) initEvents(ctx context.Context) error {
 	query := fmt.Sprintf(`
 		CREATE TABLE IF NOT EXISTS %s (
 			height BIGINT NOT NULL,
-			chain_id SMALLINT NOT NULL,
+			chain_id BIGINT NOT NULL,
+			event_chain_id BIGINT NOT NULL,
 			address TEXT NOT NULL,
 			reference TEXT NOT NULL,
 			event_type TEXT NOT NULL,
@@ -32,7 +33,8 @@ func (db *DB) initEvents(ctx context.Context) error {
 			sellers_send_address TEXT DEFAULT '',
 			msg TEXT NOT NULL, -- JSON message data
 			height_time TIMESTAMP WITH TIME ZONE NOT NULL,
-			PRIMARY KEY (height, event_type, chain_id, address, reference)
+			created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+			PRIMARY KEY (chain_id, height, event_chain_id, address, reference, event_type)
 		);
 
 		CREATE INDEX IF NOT EXISTS idx_events_address ON %s(address);

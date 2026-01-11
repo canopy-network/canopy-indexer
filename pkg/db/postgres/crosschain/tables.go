@@ -23,6 +23,7 @@ func (db *DB) initBlocks(ctx context.Context) error {
 			num_txs BIGINT NOT NULL DEFAULT 0,
 			total_txs BIGINT NOT NULL DEFAULT 0,
 			created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+			updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
 			PRIMARY KEY (chain_id, height)
 		);
 
@@ -186,7 +187,7 @@ func (db *DB) initTransactions(ctx context.Context) error {
 			memo                    TEXT,
 			validator_address       TEXT,
 			commission              DOUBLE PRECISION,
-			chain_id_tx             BIGINT,
+			tx_chain_id             BIGINT,
 			sell_amount             BIGINT,
 			buy_amount              BIGINT,
 			liquidity_amount        BIGINT,
