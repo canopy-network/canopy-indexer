@@ -64,14 +64,14 @@ func (db *DB) SchemaTable(tableName string) string {
 	return fmt.Sprintf("%s.%s", db.Schema, tableName)
 }
 
-// DropChainDatabase drops the chain-specific database
-func (db *DB) DropChainDatabase(ctx context.Context, chainID uint64) error {
-	dbName := postgres.SanitizeName(fmt.Sprintf("chain_%d", chainID))
+// DropChainSchema drops the chain-specific schema
+func (db *DB) DropChainSchema(ctx context.Context, chainID uint64) error {
+	schemaName := postgres.SanitizeName(fmt.Sprintf("chain_%d", chainID))
 
-	// Cannot use parameterized query for DROP DATABASE
-	query := fmt.Sprintf("DROP DATABASE IF EXISTS %s", pgx.Identifier{dbName}.Sanitize())
+	// Drop schema with CASCADE to remove all dependent objects
+	query := fmt.Sprintf("DROP SCHEMA IF EXISTS %s CASCADE", pgx.Identifier{schemaName}.Sanitize())
 	if err := db.Exec(ctx, query); err != nil {
-		return fmt.Errorf("drop chain database %s: %w", dbName, err)
+		return fmt.Errorf("drop chain schema %s: %w", schemaName, err)
 	}
 	return nil
 }

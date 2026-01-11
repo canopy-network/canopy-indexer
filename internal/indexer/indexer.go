@@ -46,8 +46,8 @@ type Indexer struct {
 
 // New creates a new Indexer with initialized databases.
 func New(ctx context.Context, logger *zap.Logger, cfg *config.Config, postgresClient *postgres.Client, publisher *publisher.Publisher) (*Indexer, error) {
-	// Initialize admin DB - use "admin" database to share chains with API
-	adminDB, err := admin.NewWithPoolConfig(ctx, logger, "admin",
+	// Initialize admin DB - use "indexer" database with "admin" schema to share chains with API
+	adminDB, err := admin.NewWithPoolConfig(ctx, logger, "indexer",
 		*postgres.GetPoolConfigForComponent("indexer_admin"))
 	if err != nil {
 		return nil, fmt.Errorf("create admin db: %w", err)
