@@ -9,7 +9,7 @@ print("🚀 Starting Canopy Full Stack Development Environment")
 # =============================================================================
 
 PGPASSWORD = "canopy-indexer123"
-DATABASE_URL = "postgres://canopy-indexer:canopy-indexer123@localhost:5434/canopy-indexer?sslmode=disable"
+DATABASE_URL = "postgres://canopy-indexer:canopy-indexer123@localhost:5434/indexer?sslmode=disable"
 PG_HOST = "localhost"
 PG_PORT = "5434"
 PG_USER = "canopy-indexer"

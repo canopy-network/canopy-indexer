@@ -3,7 +3,7 @@ services:
     image: postgres:16-alpine
     container_name: canopy-indexer-postgres
     environment:
-      POSTGRES_DB: canopy-indexer
+      POSTGRES_DB: indexer
       POSTGRES_USER: canopy-indexer
       POSTGRES_PASSWORD: canopy-indexer123
       PGDATA: /var/lib/postgresql/data/pgdata
@@ -20,7 +20,7 @@ services:
       - "-c"
       - "log_line_prefix=%t [%p] %u@%d "    # Timestamp, PID, user@db
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U canopy-indexer -d canopy-indexer"]
+      test: ["CMD-SHELL", "pg_isready -U canopy-indexer -d indexer"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -50,7 +50,7 @@ services:
     container_name: canopy-indexer-indexer
     env_file: .env
     environment:
-      POSTGRES_URL: "postgres://canopy-indexer:canopy-indexer123@postgres:5432/canopy-indexer?sslmode=disable"
+      POSTGRES_URL: "postgres://canopy-indexer:canopy-indexer123@postgres:5432/indexer?sslmode=disable"
       REDIS_URL: "redis://:canopy-redis-dev@redis:6379/0"
       HTTP_ENABLED: "true"
       HTTP_ADDR: ":8080"
@@ -80,7 +80,7 @@ services:
     container_name: canopy-indexer-backfill
     env_file: .env
     environment:
-      POSTGRES_URL: "postgres://canopy-indexer:canopy-indexer123@postgres:5432/canopy-indexer?sslmode=disable"
+      POSTGRES_URL: "postgres://canopy-indexer:canopy-indexer123@postgres:5432/indexer?sslmode=disable"
       REDIS_URL: "redis://:canopy-redis-dev@redis:6379/0"
     volumes:
       - ./bin/backfill-linux:/app/bin/backfill:ro

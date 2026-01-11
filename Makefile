@@ -57,11 +57,11 @@ clean:
 
 # Run database migrations (local postgres on 5434)
 migrate:
-	PGPASSWORD=canopy-indexer123 psql -h localhost -p 5434 -U canopy-indexer -d canopy-indexer -f migrations/001_initial.sql
+	PGPASSWORD=canopy-indexer123 psql -h localhost -p 5434 -U canopy-indexer -d indexer -f migrations/001_initial.sql
 
 # Connect to psql (interactive)
 psql:
-	PGPASSWORD=canopy-indexer123 psql -h localhost -p 5434 -U canopy-indexer -d canopy-indexer
+	PGPASSWORD=canopy-indexer123 psql -h localhost -p 5434 -U canopy-indexer -d indexer
 
 # Reset database (drop and recreate)
 db-reset:
@@ -102,11 +102,11 @@ generate:
 
 # Show indexing progress
 show-progress:
-	PGPASSWORD=canopy-indexer123 psql -h localhost -p 5434 -U canopy-indexer -d canopy-indexer -c "SELECT * FROM index_progress ORDER BY chain_id;"
+	PGPASSWORD=canopy-indexer123 psql -h localhost -p 5434 -U canopy-indexer -d indexer -c "SELECT * FROM index_progress ORDER BY chain_id;"
 
 # Show table stats
 show-stats:
-	PGPASSWORD=canopy-indexer123 psql -h localhost -p 5434 -U canopy-indexer -d canopy-indexer -c "\
+	PGPASSWORD=canopy-indexer123 psql -h localhost -p 5434 -U canopy-indexer -d indexer -c "\
 		SELECT 'blocks' as table_name, COUNT(*) as count FROM blocks \
 		UNION ALL SELECT 'txs', COUNT(*) FROM txs \
 		UNION ALL SELECT 'events', COUNT(*) FROM events \
@@ -140,7 +140,7 @@ backfill-fast: build-backfill
 
 # Show gaps in blocks table (SQL query)
 show-gaps:
-	PGPASSWORD=canopy-indexer123 psql -h localhost -p 5434 -U canopy-indexer -d canopy-indexer -c "\
+	PGPASSWORD=canopy-indexer123 psql -h localhost -p 5434 -U canopy-indexer -d indexer -c "\
 		WITH stats AS ( \
 			SELECT \
 				COUNT(*) as indexed, \
