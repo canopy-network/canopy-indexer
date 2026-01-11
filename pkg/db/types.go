@@ -98,6 +98,13 @@ func GetTableConfigs() []TableConfig {
 			ColumnNames:      indexermodels.GetCrossChainColumnNames(indexermodels.DexWithdrawalColumns),
 		},
 		{
+			TableName:        indexermodels.BlocksProductionTableName,
+			PrimaryKey:       []string{"chain_id", "height"},
+			HasAddressColumn: false,
+			SchemaSQL:        indexermodels.ColumnsToSchemaSQL(indexermodels.FilterCrossChainColumns(indexermodels.BlockColumns)),
+			ColumnNames:      indexermodels.GetCrossChainColumnNames(indexermodels.BlockColumns),
+		},
+		{
 			TableName:        indexermodels.BlockSummariesProductionTableName,
 			PrimaryKey:       []string{"chain_id", "height"},
 			HasAddressColumn: false,
@@ -152,6 +159,8 @@ func GetColumnDefsForTable(tableName string) []indexermodels.ColumnDef {
 		return indexermodels.DexDepositColumns
 	case indexermodels.DexWithdrawalsProductionTableName:
 		return indexermodels.DexWithdrawalColumns
+	case indexermodels.BlocksProductionTableName:
+		return indexermodels.BlockColumns
 	case indexermodels.BlockSummariesProductionTableName:
 		return indexermodels.BlockSummaryColumns
 	case indexermodels.CommitteePaymentsProductionTableName:
