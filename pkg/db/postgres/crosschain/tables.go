@@ -12,7 +12,7 @@ func (db *DB) initBlocks(ctx context.Context) error {
 	blocksTable := db.SchemaTable("blocks")
 	query := fmt.Sprintf(`
 		CREATE TABLE IF NOT EXISTS %s (
-			chain_id BIGINT NOT NULL,
+			chain_id            BIGINT NOT NULL,
 			height BIGINT NOT NULL,
 			block_hash TEXT NOT NULL,
 			height_time TIMESTAMP WITH TIME ZONE NOT NULL,
@@ -48,7 +48,7 @@ func (db *DB) initBlockSummaries(ctx context.Context) error {
 	blockSummariesTable := db.SchemaTable("block_summaries")
 	query := fmt.Sprintf(`
 		CREATE TABLE IF NOT EXISTS %s (
-			chain_id                                BIGINT NOT NULL,
+			chain_id            BIGINT NOT NULL,
 			height                                  BIGINT NOT NULL,
 			height_time                             TIMESTAMP WITH TIME ZONE NOT NULL,
 			total_transactions                      BIGINT NOT NULL DEFAULT 0,
@@ -187,7 +187,7 @@ func (db *DB) initTransactions(ctx context.Context) error {
 			memo                    TEXT,
 			validator_address       TEXT,
 			commission              DOUBLE PRECISION,
-			tx_chain_id             BIGINT,
+			tx_chain_id      BIGINT,
 			sell_amount             BIGINT,
 			buy_amount              BIGINT,
 			liquidity_amount        BIGINT,
@@ -223,10 +223,10 @@ func (db *DB) initEvents(ctx context.Context) error {
 	eventsTable := db.SchemaTable("events")
 	query := fmt.Sprintf(`
 		CREATE TABLE IF NOT EXISTS %s (
-			chain_id BIGINT NOT NULL,
+			chain_id            BIGINT NOT NULL,
 			height BIGINT NOT NULL,
 			height_time TIMESTAMP WITH TIME ZONE NOT NULL,
-			event_chain_id BIGINT NOT NULL,
+			event_chain_id   BIGINT NOT NULL,
 			address TEXT NOT NULL,
 			reference TEXT NOT NULL,
 			event_type TEXT NOT NULL,
@@ -248,7 +248,7 @@ func (db *DB) initEvents(ctx context.Context) error {
 			msg TEXT NOT NULL,
 			created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
 			updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-			PRIMARY KEY (chain_id, height, event_chain_id, address, reference, event_type)
+			PRIMARY KEY (height, chain_id, event_chain_id, address, reference, event_type)
 		);
 
 		CREATE INDEX IF NOT EXISTS idx_events_height ON %s(height);
@@ -359,7 +359,7 @@ func (db *DB) initCommittees(ctx context.Context) error {
 	query := fmt.Sprintf(`
 		CREATE TABLE IF NOT EXISTS %s (
 			chain_id                    BIGINT NOT NULL,
-			committee_chain_id          BIGINT NOT NULL,
+			committee_chain_id      BIGINT NOT NULL,
 			last_root_height_updated    BIGINT NOT NULL DEFAULT 0,
 			last_chain_height_updated   BIGINT NOT NULL DEFAULT 0,
 			number_of_samples           BIGINT NOT NULL DEFAULT 0,
@@ -602,8 +602,8 @@ func (db *DB) initDexPrices(ctx context.Context) error {
 	query := fmt.Sprintf(`
 		CREATE TABLE IF NOT EXISTS %s (
 			chain_id            BIGINT NOT NULL,
-			local_chain_id      BIGINT NOT NULL,
-			remote_chain_id     BIGINT NOT NULL,
+			local_chain_id      INTEGER NOT NULL,
+			remote_chain_id     INTEGER NOT NULL,
 			height              BIGINT NOT NULL,
 			height_time         TIMESTAMP WITH TIME ZONE NOT NULL,
 			local_pool          BIGINT NOT NULL DEFAULT 0,
@@ -633,7 +633,7 @@ func (db *DB) initParams(ctx context.Context) error {
 			height_time                     TIMESTAMP WITH TIME ZONE NOT NULL,
 			block_size                      BIGINT NOT NULL DEFAULT 0,
 			protocol_version                TEXT,
-			root_chain_id                   BIGINT NOT NULL DEFAULT 0,
+			root_chain_id                   INTEGER NOT NULL DEFAULT 0,
 			retired                         BIGINT NOT NULL DEFAULT 0,
 			unstaking_blocks                BIGINT NOT NULL DEFAULT 0,
 			max_pause_blocks                BIGINT NOT NULL DEFAULT 0,
